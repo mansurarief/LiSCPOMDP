@@ -1,3 +1,8 @@
+name = "LiSCPOMDPs"
+uuid = "bf783678-6688-403b-aee8-68acb78ee984"
+authors = ["CJ <cjoshiro04@gmail.com>"]
+version = "0.1.0"
+
 [deps]
 BasicPOMCP = "d721219e-3fc6-5570-a8ef-e5402f47c49e"
 CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"

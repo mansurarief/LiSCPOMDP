@@ -9,20 +9,6 @@ This file contains the implementation of the LiPOMDP.
 =#
 
 # All of the imports
-using POMDPs
-using POMDPModelTools
-using POMDPPolicies
-using QuickPOMDPs
-using Parameters
-using Random
-using DiscreteValueIteration
-using Distributions
-using Plots
-using POMCPOW
-using LinearAlgebra
-using Statistics
-using QMDP
-using D3Trees
 
 
 @with_kw mutable struct State
@@ -32,35 +18,15 @@ using D3Trees
     have_mined::Vector{Bool} = [false, false, false, false]  # Boolean value to represent whether or not we have taken a mine action
 end
 
-# To make the struct iterable (potentially for value iteration?) Was experiencing errors
-function Base.iterate(state::State, index=1)
-    if index <= 5  # I should get rid of magic numbers later
-        
-        # If on a valid field index, get the field name and then the thing at that field
-        field = fieldnames(State)[index]
-        value = getfield(state, field)
-        # Return value and the next index for iteration
-        return (value, index + 1)
-    else
-        # If we've gone through all fields, return nothing to signify that we're done
-        return nothing
-    end
-end
-
-# Make a copy of the state
-function Base.deepcopy(s::State)
-    return State(deepcopy(s.deposits), s.t, s.Vₜ, deepcopy(s.have_mined))  # don't have to copy t and Vₜ cuz theyre immutable i think
-end
-
 # All potential actions
 @enum Action MINE1 MINE2 MINE3 MINE4 EXPLORE1 EXPLORE2 EXPLORE3 EXPLORE4
 rng = MersenneTwister(1)
 
 @with_kw mutable struct LiPOMDP <: POMDP{State, Action, Any} 
-    t_goal = 10
+    t_goal = 10 #time goal, want to wait 10 years
     σ_obs = 0.1
-    Vₜ_goal = 8
-    γ = 0.98
+    Vₜ_goal = 8 #Volume goal
+    γ = 0.98 #discounted reward
     n_deposits = 4 
     bin_edges = [0.25, 0.5, 0.75]  # Used to discretize observations
     obs_type = "continuous"
@@ -82,43 +48,11 @@ end
 
 POMDPs.support(b::LiBelief) = rand(b)
 
-# Input a belief and randomly produce a state from it 
-function Base.rand(rng::AbstractRNG, b::LiBelief)
-    deposit_samples = rand.(rng, b.deposit_dists)
-    t = b.t
-    V_tot = b.V_tot
-    have_mined = b.have_mined
-    return State(deposit_samples, t, V_tot, have_mined)
-end
-
-
 # Unsure if the right way to do this is to have a product distribution over the 4 deposits? 
 # Pass in an RNG?
 function POMDPs.initialstate(P::LiPOMDP, )
     init_state = State([8.9, 7, 1.8, 5], 0, 0, [false, false, false, false])
     return Deterministic(init_state)
-end
-
-function random_initial_state(P::LiPOMDP, rng::AbstractRNG=Random.default_rng())
-    # Randomize resources in each deposit site (assuming resources range between 0 to 10 for example)
-    resources = [rand(rng, 2.:1.:6.) for _ in 1:P.n_deposits]
-    t = 0
-    v = 0
-    mined = fill(false, P.n_deposits)
-
-    return State(resources, t, v, mined)
-end
-
-function random_initial_belief(s::State, rng::AbstractRNG=Random.default_rng())
-    # Initialize belief to be a vector of 4 normal distributions, one for each deposit
-    # Each normal distribution has mean equal to the amount of Li in that deposit, and
-    # standard deviation equal to P.σ_obs
-    std_range = collect(1.:0.5:5.0)
-    deposit_dists = [Normal(d, rand(rng, std_range)) for d in s.deposits]
-    t = s.t
-    V_tot = s.Vₜ
-    have_mined = s.have_mined
-    return LiBelief(deposit_dists, t, V_tot, have_mined)
 end
 
 # Continuous state space
@@ -150,7 +84,7 @@ function POMDPs.actions(P::LiPOMDP, b)
 
     # Ensures that there is <= 10% (or P.cdf_threshold) of the belief distribution below the P.min_n_units
     for i = 1:4
-        if isa(b, POMCPOW.StateBelief{POWNodeBelief{State, Action, Any, LiPOMDP}}) 
+        if isa(b, POMCPOW.StateBelief{POWNodeBelief{State, Action, Any, LiPOMDP}})
             belief = convert_particle_collection_to_libelief(b) #! made change here too 
             if belief.have_mined[i]  # handle POMCPOW
                 continue
@@ -174,7 +108,6 @@ function POMDPs.actions(P::LiPOMDP, b)
     end 
     return potential_actions
 end
-
 
 # Reward function: returns the reward for being in state s and taking action a
 # Reward is comprised of three parts:
@@ -286,20 +219,9 @@ function POMDPs.observation(P::LiPOMDP, a::Action, sp::State)
     end
 end
 
-# Define == operator to use in the termination thing, just compares two states
-Base.:(==)(s1::State, s2::State) = (s1.deposits == s2.deposits) && (s1.t == s2.t) && (s1.Vₜ == s2.Vₜ) && (s1.have_mined == s2.have_mined)
-
 POMDPs.discount(P::LiPOMDP) = P.γ
 
 POMDPs.isterminal(P::LiPOMDP, s::State) = s == P.null_state
-
-# kalman_step is used in the belief updater update function
-function kalman_step(P::LiPOMDP, μ::Float64, σ::Float64, z::Float64)
-    k = σ / (σ + P.σ_obs)  # Kalman gain
-    μ_prime = μ + k * (z - μ)  # Estimate new mean
-    σ_prime = (1 - k) * σ   # Estimate new uncertainty
-    return μ_prime, σ_prime
-end
 
 struct LiBeliefUpdater <: Updater
     P::LiPOMDP
@@ -366,4 +288,3 @@ function POMDPs.update(up::Updater, b::LiBelief, a::Action, o::Vector{Float64})
         return belief
     end 
 end
-

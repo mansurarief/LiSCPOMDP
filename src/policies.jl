@@ -23,7 +23,6 @@ function POMDPs.updater(policy::RandomPolicy)
     return LiBeliefUpdater(policy.pomdp)
 end
 
-
 #GREEDY EFFICIENCY POLICY -- explore all deposits first, then 
 @with_kw mutable struct EfficiencyPolicy <: Policy 
     pomdp::LiPOMDP
@@ -53,6 +52,10 @@ function POMDPs.action(p::EfficiencyPolicy, b::LiBelief)
     _, best_mine = findmax(scores)
     
     return eval(Meta.parse("MINE$(best_mine)"))
+end
+
+function POMDPs.updater(policy::EfficiencyPolicy)
+    return LiBeliefUpdater(policy.pomdp)
 end
 
 
@@ -91,6 +94,11 @@ function POMDPs.action(p::EfficiencyPolicyWithUncertainty, b::LiBelief)
 end
 
 
+function POMDPs.updater(policy::EfficiencyPolicyWithUncertainty)
+    return LiBeliefUpdater(policy.pomdp)
+end
+
+
 #EMISSION AWARE POLICY -- explores first, then mines the deposit with the highest expected Lithium per CO2 emission
 @with_kw mutable struct EmissionAwarePolicy <: Policy 
     pomdp::LiPOMDP
@@ -124,3 +132,21 @@ function POMDPs.action(p::EmissionAwarePolicy, b::LiBelief)
     
     return eval(Meta.parse("MINE$(best_mine)"))
 end
+
+function POMDPs.updater(policy::EmissionAwarePolicy)
+    return LiBeliefUpdater(policy.pomdp)
+end
+
+function POMDPs.updater(policy::POMCPOWPlanner{LiPOMDP, POMCPOW.POWNodeFilter, MaxUCB, RandomActionGenerator{Random._GLOBAL_RNG}, typeof(estimate_value), Int64, Float64, POMCPOWSolver{Random._GLOBAL_RNG, POMCPOW.var"#6#12"}})
+    return LiBeliefUpdater(policy.problem)
+end
+
+function POMDPs.updater(policy::DPWPlanner{GenerativeBeliefMDP{LiPOMDP, LiBeliefUpdater, LiBelief{Normal{Float64}}, Action}, 
+                                           LiBelief{Normal{Float64}}, 
+                                           Action, 
+                                           MCTS.SolvedRolloutEstimator{EfficiencyPolicyWithUncertainty, Random._GLOBAL_RNG}, 
+                                           RandomActionGenerator{Random._GLOBAL_RNG}, MCTS.var"#18#22", Random._GLOBAL_RNG})
+    return LiBeliefUpdater(policy.solved_estimate.policy.pomdp)
+end
+
+
