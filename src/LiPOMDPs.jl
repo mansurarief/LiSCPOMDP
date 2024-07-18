@@ -19,8 +19,9 @@ using D3Trees
 export 
     #Abstract types
     LiPOMDP, #<: POMDP
-    LiBelief #<: UnivariateDistribution
-include("LiPOMDP.jl")
+    LiBelief, #<: UnivariateDistribution
+    LiBeliefUpdater
+include("pomdp.jl")
 
 export
     #Functions
@@ -30,15 +31,6 @@ export
     replicate_simulation,
     simulate_policy
 include("utils.jl")
-
-
-export 
-    EfficiencyPolicy
-
-include("policies.jl")
-
-
-
 
 
 end #module
