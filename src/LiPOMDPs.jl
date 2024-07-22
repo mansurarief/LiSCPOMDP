@@ -32,5 +32,12 @@ export
     simulate_policy
 include("utils.jl")
 
+export
+    #types
+    RandomPolicy,
+    EfficiencyPolicy,
+    EfficiencyPolicyWithUncertainty,
+    EmissionAwarePolicy
+include("policies.jl")
 
 end #module

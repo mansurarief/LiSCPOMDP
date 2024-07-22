@@ -10,6 +10,7 @@ This file contains the implementation of the LiPOMDP.
 
 # All of the imports
 
+__precompile__(false) #overloading function error, terminal said to add this directive
 
 @with_kw mutable struct State
     deposits::Vector{Float64} # [v₁, v₂, v₃, v₄]

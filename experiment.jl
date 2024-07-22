@@ -1,5 +1,5 @@
 using Random
-using POMDPs
+using POMDPs 
 using POMDPTools
 using LiPOMDPs
 using MCTS
@@ -17,5 +17,6 @@ up = LiBeliefUpdater(pomdp)
 
 policy = RandomPolicy(pomdp)
 s0 = pomdp.init_state
+println(typeof(up))
+println(typeof(s0))
 b0 = initialize_belief(up, s0)
-

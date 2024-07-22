@@ -7,6 +7,13 @@ File: main.jl
 ----------------
 This file contains the code that runs and evaluates all of our policies, printing out necessary information to the console.
 =#
+using Random
+using POMDPs 
+using POMDPTools
+using LiPOMDPs
+using MCTS
+using DiscreteValueIteration
+using POMDPPolicies
 
 Random.set_global_seed!(0)
 

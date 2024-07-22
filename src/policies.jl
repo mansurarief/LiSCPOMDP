@@ -137,7 +137,7 @@ function POMDPs.updater(policy::EmissionAwarePolicy)
     return LiBeliefUpdater(policy.pomdp)
 end
 
-function POMDPs.updater(policy::POMCPOWPlanner{LiPOMDP, POMCPOW.POWNodeFilter, MaxUCB, RandomActionGenerator{Random._GLOBAL_RNG}, typeof(estimate_value), Int64, Float64, POMCPOWSolver{Random._GLOBAL_RNG, POMCPOW.var"#6#12"}})
+function POMDPs.updater(policy::POMCPOWPlanner{LiPOMDP, POMCPOW.POWNodeFilter, MaxUCB, POMCPOW.RandomActionGenerator{Random._GLOBAL_RNG}, typeof(estimate_value), Int64, Float64, POMCPOWSolver{Random._GLOBAL_RNG, POMCPOW.var"#6#12"}})
     return LiBeliefUpdater(policy.problem)
 end
 
