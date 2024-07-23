@@ -40,7 +40,7 @@ rng = MersenneTwister(1)
 end
 
 # Belief struct
-struct LiBelief{T<:UnivariateDistribution}
+struct LiBelief{T<:UnivariateDistribution} #ToDo: Assign as Belief
     deposit_dists::Vector{T}
     t::Float64
     V_tot::Float64
@@ -66,49 +66,55 @@ function POMDPs.states(P::LiPOMDP)
     V_tot_min = V_deposit_min * P.n_deposits  # 0
     V_tot_max = V_deposit_max * P.n_deposits  # 40
 
-    deposit_vec_bounds = [(V_deposit_min, V_deposit_max) for x in 1:P.n_deposits]  # Make a length-4 vector, one for each deposit
-    V_tot_bounds = Interval(V_tot_min, V_tot_max)
-    time_bounds = 0:10  # This can be discrete since we're only going a year at a time
+    # deposit_vec_bounds = [(V_deposit_min, V_deposit_max) for x in 1:P.n_deposits]  # Make a length-4 vector, one for each deposit
+    deposits = [V_deposit_min, V_deposit_max]
+    V_tot_bounds = [V_tot_min, V_tot_max]
+    booleans = [true, false]
+    time_bounds = [0, 1, 2, 3]  # This can be discrete since we're only going a year at a time
 
-    𝒮 = product_state_space(deposit_vec_bounds, V_tot_bounds, time_bounds)  # Cartesian product 
+
+    #TODO: simpler way to define all combinations [vec_deposits,...] 
+    𝒮 = [State([s[1], s[2], s[3], s[4]],  s[5], s[6], [s[7], s[8], s[9], s[10]]) for s in Iterators.product(deposits, deposits, deposits, deposits, V_tot_bounds, time_bounds, booleans, booleans, booleans, booleans)]  # Cartesian product 
     # QUESTION: how could I add the null state into the space?
     return 𝒮
 
 end
 
 # Action function: now dependent on belief state
-function POMDPs.actions(P::LiPOMDP, b)
+function POMDPs.actions(P::LiPOMDP)
     potential_actions = [MINE1, MINE2, MINE3, MINE4, EXPLORE1, EXPLORE2, EXPLORE3, EXPLORE4]#actions(P)
 
     # Checks to ensure that we aren't trying to explore at a site we have already mined at
-    potential_actions = filter(a -> can_explore_here(a, b), potential_actions)
+    # potential_actions = filter(a -> can_explore_here(a, b), potential_actions)
 
     # Ensures that there is <= 10% (or P.cdf_threshold) of the belief distribution below the P.min_n_units
-    for i = 1:4
-        if isa(b, POMCPOW.StateBelief{POWNodeBelief{State, Action, Any, LiPOMDP}})
-            belief = convert_particle_collection_to_libelief(b) #! made change here too 
-            if belief.have_mined[i]  # handle POMCPOW
-                continue
-            end
-        else
-            if b.have_mined[i]  #handle LiBelief
-                continue
-            end
-        end
+    # for i = 1:4
+    #     if isa(b, POMCPOW.StateBelief{POWNodeBelief{State, Action, Any, LiPOMDP}})
+    #         belief = convert_particle_collection_to_libelief(b) #! made change here too 
+    #         if belief.have_mined[i]  # handle POMCPOW
+    #             continue
+    #         end
+    #     else
+    #         if b.have_mined[i]  #handle LiBelief
+    #             continue
+    #         end
+    #     end
 
-        # dist = b.deposit_dists[i]
-        # portion_below_threshold = cdf(dist, P.min_n_units)
-        portion_below_threshold = compute_portion_below_threshold(P, b, i)
-        if portion_below_threshold > P.cdf_threshold  # BAD!
+    #     # dist = b.deposit_dists[i]
+    #     # portion_below_threshold = cdf(dist, P.min_n_units)
+    #     portion_below_threshold = compute_portion_below_threshold(P, b, i)
+    #     if portion_below_threshold > P.cdf_threshold  # BAD!
 
-            bad_action_str = "MINE" * string(i)
-            bad_action = str_to_action(bad_action_str)
-            # Ensure that this bad_action is not in potential_actions
-            potential_actions = filter(a -> a != bad_action, potential_actions)
-        end   
-    end 
+    #         bad_action_str = "MINE" * string(i)
+    #         bad_action = str_to_action(bad_action_str)
+    #         # Ensure that this bad_action is not in potential_actions
+    #         potential_actions = filter(a -> a != bad_action, potential_actions)
+    #     end   
+    # end 
     return potential_actions
 end
+
+
 
 # Reward function: returns the reward for being in state s and taking action a
 # Reward is comprised of three parts:
@@ -228,16 +234,17 @@ struct LiBeliefUpdater <: Updater
     P::LiPOMDP
 end
 
-function POMDPs.initialize_belief(up::Updater, s)
+function POMDPs.initialize_belief(up::Updater)
     # Initialize belief to be a vector of 4 normal distributions, one for each deposit
     # Each normal distribution has mean equal to the amount of Li in that deposit, and
     # standard deviation equal to P.σ_obs
-    s = rand(s)
-    deposit_dists = [Normal(s.deposits[1], 0.2), Normal(s.deposits[2], 0.2), Normal(s.deposits[3], 0.2), Normal(s.deposits[4], 2.0)]
-    t = s.t
-    V_tot = s.Vₜ
-    have_mined = s.have_mined
-    return LiBelief(deposit_dists, t, V_tot, have_mined)
+    #=deposit_dists = [Normal(up.P.s.deposits[1], 0.2), Normal(up.P.s.deposits[2], 0.2), Normal(up.P.s.deposits[3], 0.2), Normal(up.P.s.deposits[4], 2.0)]
+    t = up.P.s.t
+    V_tot = up.P.s.Vₜ
+    have_mined = up.P.s.have_mined
+    return LiBelief(deposit_dists, t, V_tot, have_mined)=#
+    S = states(up.P);
+    return SparseCat([S...], [1/length(S) for I in length(S)])
 end
 
 # takes in a belief, action, and observation and uses it to update the belief

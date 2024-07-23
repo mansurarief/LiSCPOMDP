@@ -15,12 +15,15 @@ using Plots
 using LinearAlgebra
 using Statistics
 using D3Trees
+using MCTS
  
 export 
     #Abstract types
     LiPOMDP, #<: POMDP
     LiBelief, #<: UnivariateDistribution
-    LiBeliefUpdater
+    LiBeliefUpdater,
+    State, 
+    Action
 include("pomdp.jl")
 
 export
@@ -34,7 +37,7 @@ include("utils.jl")
 
 export
     #types
-    RandomPolicy,
+    RandPolicy,
     EfficiencyPolicy,
     EfficiencyPolicyWithUncertainty,
     EmissionAwarePolicy

@@ -2,7 +2,13 @@
 
 julia_version = "1.10.4"
 manifest_format = "2.0"
-project_hash = "a3b9b7e222779ba7e41253008acd8b669419863d"
+project_hash = "e43dc7d96e8e959abeb78d375579d5651cedd31d"
+
+[[deps.ARDESPOT]]
+deps = ["BasicPOMCP", "CPUTime", "D3Trees", "POMDPTools", "POMDPs", "Parameters", "ParticleFilters", "Printf", "Random"]
+git-tree-sha1 = "d6f73792bf7f162a095503f47427c66235c0c772"
+uuid = "d96c9ae4-3372-47d5-8a88-316ae77be8cf"
+version = "0.3.8"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "faa260e4cb5aba097a73fab382dd4b5819d8ec8c"
@@ -643,9 +649,9 @@ version = "1.0.0"
 
 [[deps.MCTS]]
 deps = ["Colors", "D3Trees", "POMDPLinter", "POMDPTools", "POMDPs", "Printf", "ProgressMeter", "Random"]
-git-tree-sha1 = "70df88ffe6f23e630a84543432052620be12b7d0"
+git-tree-sha1 = "ea9d0fffd47111ac149e3c983ce5e21863268809"
 uuid = "e12ccd36-dcad-5f33-8774-9175229e7b33"
-version = "0.5.3"
+version = "0.5.6"
 
 [[deps.MacroTools]]
 deps = ["Markdown", "Random"]

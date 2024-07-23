@@ -9,17 +9,23 @@ This file contains the multiple baseline policies to test our POMCPOW and MCTS-D
 =#
 
 #RANDOM POLICY -- selects a random action to take (from the available ones)
-struct RandomPolicy <: Policy
+struct RandPolicy <: Policy
     pomdp::LiPOMDP
 end
 
-function POMDPs.action(p::RandomPolicy, b::LiBelief)
+function POMDPs.action(p::RandPolicy, b::LiBelief)
+    println(fieldnames(typeof(b)))
     potential_actions = actions(p.pomdp, b)
     #println("random actions list: $potential_actions for $b")
     return rand(potential_actions)
 end
 
-function POMDPs.updater(policy::RandomPolicy)
+#TODO verwrite action info
+function action_info(p::RandPolicy, x::Deterministic{LiPOMDPs.State})
+    actions(p)
+end
+
+function POMDPs.updater(policy::RandPolicy)
     return LiBeliefUpdater(policy.pomdp)
 end
 
@@ -141,7 +147,7 @@ function POMDPs.updater(policy::POMCPOWPlanner{LiPOMDP, POMCPOW.POWNodeFilter, M
     return LiBeliefUpdater(policy.problem)
 end
 
-function POMDPs.updater(policy::DPWPlanner{GenerativeBeliefMDP{LiPOMDP, LiBeliefUpdater, LiBelief{Normal{Float64}}, Action}, 
+function POMDPs.updater(policy::MCTS.DPWPlanner{GenerativeBeliefMDP{LiPOMDP, LiBeliefUpdater, LiBelief{Normal{Float64}}, Action}, 
                                            LiBelief{Normal{Float64}}, 
                                            Action, 
                                            MCTS.SolvedRolloutEstimator{EfficiencyPolicyWithUncertainty, Random._GLOBAL_RNG}, 
