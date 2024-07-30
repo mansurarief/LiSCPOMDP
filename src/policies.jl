@@ -20,9 +20,9 @@ function POMDPs.action(p::RandPolicy, b::LiBelief)
     return rand(potential_actions)
 end
 
-#TODO verwrite action info
-function action_info(p::RandPolicy, x::Deterministic{LiPOMDPs.State})
-    actions(p)
+function POMDPs.action(p::RandPolicy, x::Deterministic{State})
+    potential_actions = actions(p.pomdp, x)
+    return rand(potential_actions)
 end
 
 function POMDPs.updater(policy::RandPolicy)

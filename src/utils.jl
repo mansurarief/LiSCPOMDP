@@ -13,6 +13,12 @@ function estimate_value(P::LiPOMDP, s, h, steps)
     return s.Vₜ < P.Vₜ_goal ? -100.0 : 0.0
 end
 
+#Used for the POMCPOW solver. Same method, defined for specific types to mitigate errors.
+function POMCPOW.estimate_value(
+    P::LiPOMDP, s::State, h::POWTreeObsNode{POWNodeBelief{State, Action, Any, LiPOMDP}, Action, Any, ParticleFilters.ParticleCollection{State}}, steps::Int64)
+    return s.Vₜ < P.Vₜ_goal ? -100.0 : 0.0
+end
+
 # Runs all simulations for every inputted policy
 function evaluate_policies(pomdp::LiPOMDP, policies::Vector, k::Int, max_steps::Int)
 
