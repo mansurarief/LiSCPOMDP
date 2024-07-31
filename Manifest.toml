@@ -2,7 +2,7 @@
 
 julia_version = "1.10.4"
 manifest_format = "2.0"
-project_hash = "e43dc7d96e8e959abeb78d375579d5651cedd31d"
+project_hash = "8cc2c9df11260fb83bcb3fd06832bf8c7fc42426"
 
 [[deps.ARDESPOT]]
 deps = ["BasicPOMCP", "CPUTime", "D3Trees", "POMDPTools", "POMDPs", "Parameters", "ParticleFilters", "Printf", "Random"]
@@ -215,6 +215,12 @@ deps = ["Mmap"]
 git-tree-sha1 = "9e2f36d3c96a820c678f2f1f1782582fcf685bae"
 uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 version = "1.9.1"
+
+[[deps.DiscreteValueIteration]]
+deps = ["LinearAlgebra", "POMDPLinter", "POMDPTools", "POMDPs", "Printf", "SparseArrays"]
+git-tree-sha1 = "4210976635e65e2410aa7662203c1d2090320891"
+uuid = "4b033969-44f6-5439-a48b-c11fa3648068"
+version = "0.4.8"
 
 [[deps.Distributed]]
 deps = ["Random", "Serialization", "Sockets"]

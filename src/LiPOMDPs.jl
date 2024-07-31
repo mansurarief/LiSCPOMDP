@@ -18,13 +18,13 @@ using D3Trees
 using MCTS
  
 export 
-    #Abstract types
-    LiPOMDP, #<: POMDP
-    LiBelief, #<: UnivariateDistribution
+    LiPOMDP, 
+    LiBelief, 
     LiBeliefUpdater,
     State, 
-    Action
-include("pomdp.jl")
+    Action,
+    initialize_lipomdp
+include("model.jl")
 
 export
     #Functions
@@ -42,5 +42,7 @@ export
     EfficiencyPolicyWithUncertainty,
     EmissionAwarePolicy
 include("policies.jl")
+
+include("pomdp.jl")
 
 end #module

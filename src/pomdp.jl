@@ -1,158 +1,122 @@
 #=
-Modeling the US Path to Lithium Self Sufficiency Using POMDPs
-Summer 2023
-Yasmine Alonso, Mansur Arief, Anthony Corso, Jef Caers, and Mykel Kochenderfer
-
-File: LiPOMDP.jl
+Original Authors: Yasmine Alonso, Mansur Arief, Anthony Corso, Jef Caers, and Mykel Kochenderfer
+Extended by: CJ Oshiro, Mansur Arief, Mykel Kochenderfer
 ----------------
-This file contains the implementation of the LiPOMDP. 
 =#
 
-# All of the imports
 
-#__precompile__(false) #overloading function error, terminal said to add this directive
+POMDPs.support(b::LiBelief) = rand(b)  #TODO: change to be the support of deposit distributions
 
-@with_kw mutable struct State
-    deposits::Vector{Float64} # [v₁, v₂, v₃, v₄]
-    t::Float64 = 0  # current time
-    Vₜ::Float64 = 0  # current amt of Li mined up until now
-    have_mined::Vector{Bool} = [false, false, false, false]  # Boolean value to represent whether or not we have taken a mine action
+
+function POMDPs.initialstate(P::LiPOMDP)
+    return Deterministic(P.init_state)
 end
 
-# All potential actions
-@enum Action MINE1 MINE2 MINE3 MINE4 EXPLORE1 EXPLORE2 EXPLORE3 EXPLORE4
-rng = MersenneTwister(1)
-
-@with_kw mutable struct LiPOMDP <: POMDP{State, Action, Any} 
-    t_goal = 10 #time goal, want to wait 10 years
-    σ_obs = 0.1
-    Vₜ_goal = 8 #Volume goal
-    γ = 0.98 #discounted reward
-    n_deposits = 4 
-    bin_edges = [0.25, 0.5, 0.75]  # Used to discretize observations
-    obs_type = "continuous"
-    cdf_threshold = 0.1  # threshold allowing us to mine or not
-    min_n_units = 3  # minimum number of units required to mine. So long as cdf_threshold portion of the probability
-    obj_weights = [0.33, 0.33, 0.33]  # how we want to weight each component of the reward 
-    CO2_emissions::Vector{Float64} = [5, 7, 2, 5]  #[C₁, C₂, C₃, C₄] amount of CO2 each site emits
-    null_state::State = State([-1, -1, -1, -1], -1, -1, [true, true, true, true])
-    init_state::State = State([8.9, 7, 1.8, 5], 0, 0, [false, false, false, false])  # For convenience for me rn when I want to do a quick test and pass in some state
-end
-
-# Belief struct
-struct LiBelief{T<:UnivariateDistribution} #ToDo: Assign as Belief
-    deposit_dists::Vector{T}
-    t::Float64
-    V_tot::Float64
-    have_mined::Vector{Bool} 
-end
-
-POMDPs.support(b::LiBelief) = rand(b)
-
-# Unsure if the right way to do this is to have a product distribution over the 4 deposits? 
-function POMDPs.initialstate(P::LiPOMDP, )
-    init_state = State([8.9, 7, 1.8, 5], 0, 0, [false, false, false, false])
-    return Deterministic(init_state)
-end
-
-# Continuous state space
 function POMDPs.states(P::LiPOMDP)
-    # Min and max amount per singular deposit
-    V_deposit_min = 0
-    V_deposit_max = 10
 
-    # Min and max amount total mined, can be at smallest the deposit_min * 4, and at largest, the deposit_max * 4
-    V_tot_min = V_deposit_min * P.n_deposits  # 0
-    V_tot_max = V_deposit_max * P.n_deposits  # 40
-
-    # deposit_vec_bounds = [(V_deposit_min, V_deposit_max) for x in 1:P.n_deposits]  # Make a length-4 vector, one for each deposit
-    deposits = [V_deposit_min, V_deposit_max]
-    V_tot_bounds = [V_tot_min, V_tot_max]
+    deposits = collect(P.V_deposit_min:P.Δdeposit:P.V_deposit_max)
+    V_tot_bounds = collect(P.V_deposit_min * P.n_deposits:P.ΔV:P.V_deposit_max * P.n_deposits )
     booleans = [true, false]
-    time_bounds = [0, 1, 2, 3]  # This can be discrete since we're only going a year at a time
+    time_bounds = collect(1:P.time_horizon)
 
 
-    #TODO: simpler way to define all combinations [vec_deposits,...] 
-    𝒮 = [State([s[1], s[2], s[3], s[4]],  s[5], s[6], [s[7], s[8], s[9], s[10]]) for s in Iterators.product(deposits, deposits, deposits, deposits, V_tot_bounds, time_bounds, booleans, booleans, booleans, booleans)]  # Cartesian product 
-    # QUESTION: how could I add the null state into the space?
+    # deposits_combinations = Iterators.product(d_ for d_ in fill(deposits, P.n_deposits)) #TODO: make this more flexible
+    all_combinations = Iterators.product(deposits, deposits, deposits, deposits, V_tot_bounds, time_bounds, booleans, booleans, booleans, booleans)
+    𝒮 = [State([s[1], s[2], s[3], s[4]],  s[5], s[6], [s[7], s[8], s[9], s[10]]) for s in all_combinations] 
+    push!(𝒮, P.null_state)
+
     return 𝒮
 
 end
 
-# Action function: now dependent on belief state
+# Removed the dependency on the belief
 function POMDPs.actions(P::LiPOMDP)
-    potential_actions = [MINE1, MINE2, MINE3, MINE4, EXPLORE1, EXPLORE2, EXPLORE3, EXPLORE4]#actions(P)
+    potential_actions = [MINE1, MINE2, MINE3, MINE4, EXPLORE1, EXPLORE2, EXPLORE3, EXPLORE4]
     return potential_actions
 end
 
 
-
-# Reward function: returns the reward for being in state s and taking action a
-# Reward is comprised of three parts:
-#       1. Whether or not we have reached our time delay + volume goal (1 if yes, 0 if no)
-#       2. The amount of volume we have mined
-#       3. The amount of CO2 emissions we have produced if taking a mine action (negative)
-# The three parts of the reward are then weighted by the obj_weights vector and returned.
-
 function POMDPs.reward(P::LiPOMDP, s::State, a::Action)
+
+    domestic_mining_actions = [MINE1, MINE2]
 
     if isterminal(P, s)
         return 0
     end
 
-    # See if we achieve both time delay goal and volume amount goal
-    r1 = (s.t >= P.t_goal && s.Vₜ >= P.Vₜ_goal) ? 100 : 0
+    #TODO: move this to the problem struct
+    demand_unfulfilled_penalty = -100
+    domestic_mining_penalty = -1000
 
+    
+    # Obj #1: delay mining domesticall P.t_goal years, and if we do that before P.t_goal, we are penalized
+    r1 = s.t <= P.t_goal && a in domestic_mining_actions ? domestic_mining_penalty : 0 
+
+    # Obj #2: maximize the amount of Li mined
     r2 = s.Vₜ
 
-    # Calculates how much CO2 taking this action will emit
+    # Obj #3: minimize CO2 emissions
     r3 = get_action_emission(P, a)
 
-    reward = dot([r1, r2, r3], P.obj_weights)
+    # Obj #4: satisfy the demand at everytimestep
+    production = sum(s.have_mined)*P.mine_output
+    r4 = P.demands[Int(s.t)] > production ? demand_unfulfilled_penalty : 0
+
+    #TODO: add r5: NPV
+    #whenever you mine, you incur capex: -100
+    #at everytime step, incur opex: -10
+    #at everytime step, generate revenue: price*production
+
+    reward = dot([r1, r2, r3, r4], P.obj_weights) #TODO:modify this to include r5, num_objectives
 
     return reward
 end
 
-# Gen function: basically the trnasition function, but also samples an observation and reward, returning as a tuple
-function POMDPs.gen(P::LiPOMDP, s::State, a::Action, rng::AbstractRNG)
-    next_state::State = deepcopy(s) # Make a copy!!! need to be wary of this in Julia deepcopy might be slow
-    next_state.t = s.t + 1  # Increase time by 1 in all cases
 
-    if s.t >= P.t_goal && s.Vₜ >= P.Vₜ_goal  # If we've reached all our goals, we can terminate
-        next_state = deepcopy(P.null_state)
+function POMDPs.transition(P::LiPOMDP, s::State, a::Action)
 
+    if s.t >= P.time_horizon || isterminal(P, s)  
+        sp = deepcopy(P.null_state)
+        return Deterministic(sp)
     else
+        sp = deepcopy(s) # Make a copy!!! need to be wary of this in Julia deepcopy might be slow
+        sp.t = s.t + 1  # Increase time by 1 in all cases
         action_type = get_action_type(a)
         site_number = get_site_number(a)
 
-        # If we choose to MINE, so long as there is Li available to us, decrease amount in deposit by one unit
-        # and increase total amount mined Vₜ by 1 unit. We do not have any transitions for EXPLORE actions because 
-        # exploring does not affect state
-        if action_type == "MINE" && s.deposits[site_number] >= 1
-            next_state.deposits[site_number] = s.deposits[site_number] - 1
-            next_state.Vₜ = s.Vₜ + 1
+        if action_type == "MINE" 
+            if s.deposits[site_number] >= P.mine_output
+                mine_output = P.mine_output
+            else
+                mine_output = s.deposits[site_number]
+            end
+            sp.deposits[site_number] = s.deposits[site_number] - mine_output
+            sp.Vₜ = s.Vₜ + mine_output
         end
 
         # If we're mining, update state to reflect that we now have mined and can no longer explore
         if action_type == "MINE"
-            next_state.have_mined[site_number] = true
+            sp.have_mined[site_number] = true
         end
+
+        return Deterministic(sp)
     end
-    # Now sample an observation and get the reward as well
+   
+end
 
-    # o is continuous
-    o = rand(rng, observation(P, a, next_state))  # Vector of floats
+function POMDPs.gen(P::LiPOMDP, s::State, a::Action, rng::AbstractRNG)
+
+    sp =rand(rng, transition(P, s, a))  
+    o = rand(rng, observation(P, a, sp))  
     r = reward(P, s, a)
+    out = (sp=sp, o=o, r=r)  
 
-    out = (sp=next_state, o=o, r=r)  
     return out
 end
 
-# Observation function
+
 function POMDPs.observation(P::LiPOMDP, a::Action, sp::State)
-    # When we take an action to EXPLORE one of the four sites, we only really gain an observation on said
-    # state. So, the other remaining three states have this kinda sentinel distribution thing of -1 to represent
-    # that it's not really important/relevant
+
     site_number = get_site_number(a)  #1, 2, 3, or 4, basically last character of    
     action_type = get_action_type(a)  # "EXPLORE" or "MINE"
 
@@ -167,60 +131,29 @@ function POMDPs.observation(P::LiPOMDP, a::Action, sp::State)
 
     if action_type == "MINE"
         return product_distribution(temp) 
-    end
-
-    #handles EXPLORE
-    if P.obs_type == "continuous"        
-        temp[site_number] = Normal(sp.deposits[site_number], P.σ_obs)
-        #println("returning cts obs type")
-        return product_distribution(temp)
     else    
         site_dist = Normal(sp.deposits[site_number], P.σ_obs)
-        # sample_point = rand(site_dist)  # Step 1: get us a random sample on that distribution
-
-        quantile_vols = collect(0.:1.:10.)#quantile(site_dist, P.bin_edges)  # Step 2: get the Li Volume amounts that correspond to each quantile
-        #quantile_vols = [x for x in quantile_vols]  # Round to 1 decimal place
+        quantile_vols = collect(0.:1.:60.) #TODO: put in the problem struct
 
         # Now get the chunk boundaries (Dashed lines in my drawings)
         chunk_boundaries = compute_chunk_boundaries(quantile_vols)
 
         # Now compute the probabilities of each chunk
         probs = compute_chunk_probs(chunk_boundaries, site_dist)
-        #println("sp: ", sp, "q :", quantile_vols)
-        
-        # I believe the idea was that with other solvers, we need an observation fn that returns an explicit
-        # distribution, not just a sample. So, I decided to use a sparsecat here, but I'm unsure, since all of this doesn't
-        # really seem to be working properly :(
+
         temp[site_number] = DiscreteNonParametric(quantile_vols, probs)
+
         return product_distribution(temp)
+
     end
 end
 
+
 POMDPs.discount(P::LiPOMDP) = P.γ
 
-POMDPs.isterminal(P::LiPOMDP, s::State) = s == P.null_state
+POMDPs.isterminal(P::LiPOMDP, s::State) = s == P.null_state || s.t >= P.time_horizon
 
-struct LiBeliefUpdater <: Updater
-    P::LiPOMDP
-end
-
-#Overloaded for stepthrough, dist is only needed for function call.
-function POMDPs.initialize_belief(up::Updater, dist) 
-    deposit_dists = [
-        Normal(up.P.init_state.deposits[1]),
-        Normal(up.P.init_state.deposits[2]),
-        Normal(up.P.init_state.deposits[3]),
-        Normal(up.P.init_state.deposits[4])
-    ]
-    
-    t = 0.0
-    V_tot = 0.0
-    have_mined = [false, false, false, false]
-    
-    return LiBelief(deposit_dists, t, V_tot, have_mined)
-end
-
-function POMDPs.initialize_belief(up::Updater)
+function POMDPs.initialize_belief(up::LiBeliefUpdater)
 
     deposit_dists = [
         Normal(up.P.init_state.deposits[1]),
@@ -228,22 +161,23 @@ function POMDPs.initialize_belief(up::Updater)
         Normal(up.P.init_state.deposits[3]),
         Normal(up.P.init_state.deposits[4])
     ]
-    
-    t = 0.0
+
+    t = 1.0
     V_tot = 0.0
     have_mined = [false, false, false, false]
     
     return LiBelief(deposit_dists, t, V_tot, have_mined)
 end
 
-# takes in a belief, action, and observation and uses it to update the belief
+POMDPs.initialize_belief(up::Updater, dist) = POMDPs.initialize_belief(up)
+
+
 function POMDPs.update(up::Updater, b::LiBelief, a::Action, o::Vector{Float64})
-    # EXPLORE actions: Adjust mean of the distribution corresponding to the proper deposit, using the Kalman
-    # predict/update step (see kalman_step function above). Time increases by 1 in the belief.
-    # Return new belief, with everything else untouched (EXPLORE only allows us to gain info about one site) 
+    
     action_type = get_action_type(a)
     site_number = get_site_number(a)
     P = up.P
+
     if action_type == "EXPLORE"
         bi = b.deposit_dists[site_number]  # This is a normal distribution
         μi = mean(bi)

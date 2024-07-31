@@ -11,19 +11,20 @@ using Parameters
 using ARDESPOT
 # using Iterators
 
-Random.set_global_seed!(0)
+# Random.set_global_seed!(0)
+
+rng = MersenneTwister(1)
 
 # Initializing the POMDP, Belief Updater, and initial state, as well as the MDP version of the POMDP for MCTS
-pomdp = LiPOMDP() #always use continous and use POMCPOW obs widening params to control the discretization
-up = LiBeliefUpdater(pomdp) #TODO: use standard belief updater
+pomdp = initialize_lipomdp() 
+up = LiBeliefUpdater(pomdp)
 b = initialize_belief(up)
 policy = RandomPolicy(pomdp)
 a = action(policy, b)
 rng = MersenneTwister(0)
 s = rand(initialstate(pomdp))
 
-
-c = states(pomdp)
+# c = states(pomdp)
 
 println(fieldnames(typeof(initialstate(pomdp).val)))
 
@@ -49,7 +50,7 @@ mcts_solver = DPWSolver(
  )
 mcts_planner = solve(mcts_solver, mdp)
 
-despot_solver = DESPOTSolver(bounds=(-20.0, 20.0))
+despot_solver = DESPOTSolver(bounds=(-1000.0, 1000.0))
 despot_planner = solve(despot_solver, pomdp)
 
 # # POMCPOW Solver
@@ -67,12 +68,12 @@ pomcpow_planner = solve(solver, pomdp)
 n_reps=20
 max_steps=15
 
-planners = [pomcpow_planner]
+planners = [pomcpow_planner, despot_planner, mcts_planner, random_planner, strong_planner, robust_planner, eco_planner]
 for planner in planners
     println(" ")
     println("=====Simulating ", typeof(planner), "=====")
     println(" ")
-    for (s, a, o, r) in stepthrough(pomdp, planner, "s,a,o,r", max_steps=30)
+    for (s, a, o, r) in stepthrough(pomdp, planner, "s,a,o,r", max_steps=max_steps)
         println("in state $s")
         println("took action $a")
         println("received observation $o and reward $r")
