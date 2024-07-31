@@ -8,11 +8,14 @@ File: utils.jl
 This file contains multiple utility functions used throughout the project.
 =#
 
-using Distributions
-using ParticleFilters
-
 # Used for the POMCPOW solver. Simply sees if we have reached volume goal or not.
 function estimate_value(P::LiPOMDP, s, h, steps)
+    return s.Vₜ < P.Vₜ_goal ? -100.0 : 0.0
+end
+
+#Used for the POMCPOW solver. Same method, defined for specific types to mitigate errors.
+function POMCPOW.estimate_value(
+    P::LiPOMDP, s::State, h::POWTreeObsNode{POWNodeBelief{State, Action, Any, LiPOMDP}, Action, Any, ParticleFilters.ParticleCollection{State}}, steps::Int64)
     return s.Vₜ < P.Vₜ_goal ? -100.0 : 0.0
 end
 
@@ -309,5 +312,68 @@ function convert_particle_collection_to_libelief(part_collection::POMCPOW.StateB
     # Create a new LiBelief with the mean, std of each Deposit, take the other fields (t, V_tot, have_mined) from the first particle
     return LiBelief([Normal(μ1, σ1), Normal(μ2, σ2), Normal(μ3, σ3), Normal(μ4, σ4)], states_vec[1].t, states_vec[1].Vₜ, [mine for mine in states_vec[1].have_mined])
 end
-    
-    
+
+#Base functions ########################
+
+# To make the struct iterable (potentially for value iteration?) Was experiencing errors
+function Base.iterate(state::State, index=1)
+    if index <= 5  # I should get rid of magic numbers later
+        
+        # If on a valid field index, get the field name and then the thing at that field
+        field = fieldnames(State)[index]
+        value = getfield(state, field)
+        # Return value and the next index for iteration
+        return (value, index + 1)
+    else
+        # If we've gone through all fields, return nothing to signify that we're done
+        return nothing
+    end
+end
+
+# Make a copy of the state
+function Base.deepcopy(s::State)
+    return State(deepcopy(s.deposits), s.t, s.Vₜ, deepcopy(s.have_mined))  # don't have to copy t and Vₜ cuz theyre immutable i think
+end
+
+# Input a belief and randomly produce a state from it 
+function Base.rand(rng::AbstractRNG, b::LiBelief)
+    deposit_samples = rand.(rng, b.deposit_dists)
+    t = b.t
+    V_tot = b.V_tot
+    have_mined = b.have_mined
+    return State(deposit_samples, t, V_tot, have_mined)
+end
+
+# Define == operator to use in the termination thing, just compares two states
+Base.:(==)(s1::State, s2::State) = (s1.deposits == s2.deposits) && (s1.t == s2.t) && (s1.Vₜ == s2.Vₜ) && (s1.have_mined == s2.have_mined)
+
+##Helper Functions Moved from LiPOMDP.jl
+function random_initial_state(P::LiPOMDP, rng::AbstractRNG=Random.default_rng())
+    # Randomize resources in each deposit site (assuming resources range between 0 to 10 for example)
+    resources = [rand(rng, 2.:1.:6.) for _ in 1:P.n_deposits]
+    t = 0
+    v = 0
+    mined = fill(false, P.n_deposits)
+
+    return State(resources, t, v, mined)
+end
+
+function random_initial_belief(s::State, rng::AbstractRNG=Random.default_rng())
+    # Initialize belief to be a vector of 4 normal distributions, one for each deposit
+    # Each normal distribution has mean equal to the amount of Li in that deposit, and
+    # standard deviation equal to P.σ_obs
+    std_range = collect(1.:0.5:5.0)
+    deposit_dists = [Normal(d, rand(rng, std_range)) for d in s.deposits]
+    t = s.t
+    V_tot = s.Vₜ
+    have_mined = s.have_mined
+    return LiBelief(deposit_dists, t, V_tot, have_mined)
+end
+
+# kalman_step is used in the belief updater update function
+function kalman_step(P::LiPOMDP, μ::Float64, σ::Float64, z::Float64)
+    k = σ / (σ + P.σ_obs)  # Kalman gain
+    μ_prime = μ + k * (z - μ)  # Estimate new mean
+    σ_prime = (1 - k) * σ   # Estimate new uncertainty
+    return μ_prime, σ_prime
+end

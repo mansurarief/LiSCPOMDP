@@ -9,20 +9,25 @@ This file contains the multiple baseline policies to test our POMCPOW and MCTS-D
 =#
 
 #RANDOM POLICY -- selects a random action to take (from the available ones)
-struct RandomPolicy <: Policy
+struct RandPolicy <: Policy
     pomdp::LiPOMDP
 end
 
-function POMDPs.action(p::RandomPolicy, b::LiBelief)
+function POMDPs.action(p::RandPolicy, b::LiBelief)
+    println(fieldnames(typeof(b)))
     potential_actions = actions(p.pomdp, b)
     #println("random actions list: $potential_actions for $b")
     return rand(potential_actions)
 end
 
-function POMDPs.updater(policy::RandomPolicy)
-    return LiBeliefUpdater(policy.pomdp)
+function POMDPs.action(p::RandPolicy, x::Deterministic{State})
+    potential_actions = actions(p.pomdp, x)
+    return rand(potential_actions)
 end
 
+function POMDPs.updater(policy::RandPolicy)
+    return LiBeliefUpdater(policy.pomdp)
+end
 
 #GREEDY EFFICIENCY POLICY -- explore all deposits first, then 
 @with_kw mutable struct EfficiencyPolicy <: Policy 
@@ -53,6 +58,10 @@ function POMDPs.action(p::EfficiencyPolicy, b::LiBelief)
     _, best_mine = findmax(scores)
     
     return eval(Meta.parse("MINE$(best_mine)"))
+end
+
+function POMDPs.updater(policy::EfficiencyPolicy)
+    return LiBeliefUpdater(policy.pomdp)
 end
 
 
@@ -91,6 +100,11 @@ function POMDPs.action(p::EfficiencyPolicyWithUncertainty, b::LiBelief)
 end
 
 
+function POMDPs.updater(policy::EfficiencyPolicyWithUncertainty)
+    return LiBeliefUpdater(policy.pomdp)
+end
+
+
 #EMISSION AWARE POLICY -- explores first, then mines the deposit with the highest expected Lithium per CO2 emission
 @with_kw mutable struct EmissionAwarePolicy <: Policy 
     pomdp::LiPOMDP
@@ -124,3 +138,21 @@ function POMDPs.action(p::EmissionAwarePolicy, b::LiBelief)
     
     return eval(Meta.parse("MINE$(best_mine)"))
 end
+
+function POMDPs.updater(policy::EmissionAwarePolicy)
+    return LiBeliefUpdater(policy.pomdp)
+end
+
+function POMDPs.updater(policy::POMCPOWPlanner{LiPOMDP, POMCPOW.POWNodeFilter, MaxUCB, POMCPOW.RandomActionGenerator{Random._GLOBAL_RNG}, typeof(estimate_value), Int64, Float64, POMCPOWSolver{Random._GLOBAL_RNG, POMCPOW.var"#6#12"}})
+    return LiBeliefUpdater(policy.problem)
+end
+
+function POMDPs.updater(policy::MCTS.DPWPlanner{GenerativeBeliefMDP{LiPOMDP, LiBeliefUpdater, LiBelief{Normal{Float64}}, Action}, 
+                                           LiBelief{Normal{Float64}}, 
+                                           Action, 
+                                           MCTS.SolvedRolloutEstimator{EfficiencyPolicyWithUncertainty, Random._GLOBAL_RNG}, 
+                                           RandomActionGenerator{Random._GLOBAL_RNG}, MCTS.var"#18#22", Random._GLOBAL_RNG})
+    return LiBeliefUpdater(policy.solved_estimate.policy.pomdp)
+end
+
+

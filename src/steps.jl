@@ -8,19 +8,20 @@ File: main.jl
 This file contains the code that runs and evaluates all of our policies, printing out necessary information to the console.
 =#
 using Random
-using POMDPs
-using POMCPOW
-using POMDPModels
+using POMDPs 
 using POMDPTools
+using LiPOMDPs
 using MCTS
-using Serialization
+using DiscreteValueIteration
+using POMDPPolicies
+using POMCPOW
+using Parameters
+using Distributions
+using ParticleFilters
+using LinearAlgebra
+
 
 Random.set_global_seed!(0)
-
-include("LiPOMDP.jl")
-include("utils.jl")
-include("policies.jl")
-
 
 # Initializing the POMDP, Belief Updater, and initial state, as well as the MDP version of the POMDP for MCTS
 pomdp = LiPOMDP() #always use continous and use POMCPOW obs widening params to control the discretization
@@ -50,10 +51,9 @@ mcts_planner = solve(mcts_solver, mdp)
 
 
 # POMCPOW Solver
-println("POMCPOW Solver")
-solver = POMCPOWSolver(
+solver = POMCPOW.POMCPOWSolver(
     tree_queries=1000, 
-    estimate_value = estimate_value,#RolloutEstimator(RandomPolicy(pomdp)), #estimate_value,
+    estimate_value = estimate_value, #RolloutEstimator(RandomPolicy(pomdp)), #estimate_value,
     k_observation=4., 
     alpha_observation=0.1, 
     max_depth=15, 
@@ -67,7 +67,15 @@ planners = [random_planner, strong_planner, robust_planner, eco_planner, pomcpow
 n_reps=20
 max_steps=15
 
-# Compares all the policies and prints out relevant information
-# Read in utils.jl
-evaluate_policies(pomdp, planners, n_reps, max_steps)
+
+for planner in planners
+    println(" ")
+    println("=====Simulating ", typeof(planner), "=====")
+    println(" ")
+    for (s, a, o, r) in stepthrough(pomdp, pomcpow_planner, "s,a,o,r", max_steps=30)
+        println("in state $s")
+        println("took action $o")
+        println("received observation $o and reward $r")
+    end
+end
 
