@@ -7,7 +7,8 @@ Extended by: CJ Oshiro, Mansur Arief, Mykel Kochenderfer
 @with_kw mutable struct State
     deposits::Vector{Float64} # [v₁, v₂, v₃, v₄]
     t::Float64 = 1  # current time
-    Vₜ::Float64 = 0  # current amt of Li mined up until now
+    Vₜ::Float64 = 0  # current amt of Li mined domestically up to time t
+    Iₜ::Float64 = 0. # current amt of Li imported up to time t
     have_mined::Vector{Bool}  # Boolean value to represent whether or not we have taken a mine action
 end
 
@@ -55,15 +56,15 @@ function initialize_lipomdp(;
     cdf_threshold=0.1,
     min_n_units=3,
     mine_output=2.0,
-    num_objectives=4,
+    num_objectives=5,
     ΔV=1.0,
     Δdeposit=1.0,
     V_deposit_min=0.0,
     V_deposit_max=10.0,
-    obj_weights=[0.25, 0.25, 0.25, 0.25],
+    obj_weights=[0.25, 0.25, 0.25, 0.25, 0.25],
     CO2_emissions=[5, 7, 2, 5],
-    null_state=State([-1, -1, -1, -1], -1, -1, [true, true, true, true]),
-    init_state=State([16.0, 60.0, 60.0, 50.0], 1, 0.0, [false, false, false, false]) # SilverPeak and ThackerPass are domestic, Greenbushes and Pilgangoora are foreign #TODO; find some reference
+    null_state=State([-1, -1, -1, -1], -1, -1, -1, [true, true, true, true]),
+    init_state=State([16.0, 60.0, 60.0, 50.0], 1, 0.0, 0.0, [false, false, false, false]) # SilverPeak and ThackerPass are domestic, Greenbushes and Pilgangoora are foreign #TODO; find some reference
     )
     return LiPOMDP(
         t_goal=t_goal, 
@@ -94,6 +95,7 @@ struct LiBelief{T<:UnivariateDistribution}
     deposit_dists::Vector{T}
     t::Float64
     V_tot::Float64
+    I_tot::Float64
     have_mined::Vector{Bool} 
 end
 

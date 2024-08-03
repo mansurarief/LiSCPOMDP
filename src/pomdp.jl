@@ -16,13 +16,14 @@ function POMDPs.states(P::LiPOMDP)
 
     deposits = collect(P.V_deposit_min:P.Δdeposit:P.V_deposit_max)
     V_tot_bounds = collect(P.V_deposit_min * P.n_deposits:P.ΔV:P.V_deposit_max * P.n_deposits )
+    I_tot_bounds = collect(P.V_deposit_min * P.n_deposits:P.ΔV:P.V_deposit_max * P.n_deposits )
     booleans = [true, false]
     time_bounds = collect(1:P.time_horizon)
 
 
     # deposits_combinations = Iterators.product(d_ for d_ in fill(deposits, P.n_deposits)) #TODO: make this more flexible
-    all_combinations = Iterators.product(deposits, deposits, deposits, deposits, V_tot_bounds, time_bounds, booleans, booleans, booleans, booleans)
-    𝒮 = [State([s[1], s[2], s[3], s[4]],  s[5], s[6], [s[7], s[8], s[9], s[10]]) for s in all_combinations] 
+    all_combinations = Iterators.product(deposits, deposits, deposits, deposits, V_tot_bounds, I_tot_bounds, time_bounds, booleans, booleans, booleans, booleans)
+    𝒮 = [State([s[1], s[2], s[3], s[4]],  s[5], s[6], s[7], [s[8], s[9], s[10], s[11]]) for s in all_combinations] 
     push!(𝒮, P.null_state)
 
     return 𝒮
@@ -35,6 +36,67 @@ function POMDPs.actions(P::LiPOMDP)
     return potential_actions
 end
 
+function compute_r1(P::LiPOMDP, s::State, a::Action; domestic_mining_penalty=-2000)
+    action_type = get_action_type(a)
+    site_num = get_site_number(a)
+    domestic_mining_actions = [MINE1, MINE2]
+
+    if action_type == "MINE" && !s.have_mined[site_num]
+        penalty = domestic_mining_penalty
+    else
+        penalty = 0
+    end
+        
+    return s.t <= P.t_goal && a in domestic_mining_actions ? penalty : 0
+end
+
+function compute_r2(P::LiPOMDP, s::State, a::Action)
+    return (domestic=s.Vₜ, imported=s.Iₜ)
+end
+
+function compute_r3(P::LiPOMDP, s::State, a::Action)
+    action_type = 
+    site_num = get_site_number(a)
+
+    if action_type == "MINE" && !s.have_mined[site_num]
+        new_emission = get_action_emission(P, a)
+    else
+        new_emission = 0
+    end
+    
+    existing_emissions = 0
+    for i in 1:4
+        if s.have_mined[i]
+            existing_emissions -= P.CO2_emissions[i]
+        end
+    end
+
+    return new_emission + existing_emissions
+
+end
+
+function compute_r4(P::LiPOMDP, s::State, a::Action; demand_unfulfilled_penalty=-100)
+    production = sum(s.have_mined)*P.mine_output
+    return P.demands[Int(s.t)] > production ? demand_unfulfilled_penalty : 0
+end
+
+function compute_r5(P::LiPOMDP, s::State, a::Action; capex_per_mine=-500, opex_per_mine=-25, price=50)
+    production = sum(s.have_mined)*P.mine_output
+    reward = 0
+
+    action_type = get_action_type(a)
+    site_num = get_site_number(a)
+
+    if action_type == "MINE" && !s.have_mined[site_num]
+        reward += capex_per_mine
+    end
+
+    reward += opex_per_mine*sum(s.have_mined)
+
+    reward += price*production
+
+    return reward
+end
 
 function POMDPs.reward(P::LiPOMDP, s::State, a::Action)
 
@@ -44,30 +106,29 @@ function POMDPs.reward(P::LiPOMDP, s::State, a::Action)
         return 0
     end
 
-    #TODO: move this to the problem struct
-    demand_unfulfilled_penalty = -100
+    #TODO: move these to the problem struct
+    demand_unfulfilled_penalty = -150
     domestic_mining_penalty = -1000
-
+    capex_per_mine = -25
+    opex_per_mine = -10
+    material_price = 100
     
-    # Obj #1: delay mining domesticall P.t_goal years, and if we do that before P.t_goal, we are penalized
-    r1 = s.t <= P.t_goal && a in domestic_mining_actions ? domestic_mining_penalty : 0 
-
+    # Obj #1: delay mining domestically P.t_goal years, and if we do that before P.t_goal, we are penalized
+    r1 = compute_r1(P, s, a, domestic_mining_penalty=domestic_mining_penalty)
+    
     # Obj #2: maximize the amount of Li mined
-    r2 = s.Vₜ
+    r2 = sum(compute_r2(P, s, a))
 
     # Obj #3: minimize CO2 emissions
-    r3 = get_action_emission(P, a)
+    r3 = compute_r3(P, s, a)
 
     # Obj #4: satisfy the demand at everytimestep
-    production = sum(s.have_mined)*P.mine_output
-    r4 = P.demands[Int(s.t)] > production ? demand_unfulfilled_penalty : 0
+    r4 = compute_r4(P, s, a, demand_unfulfilled_penalty=demand_unfulfilled_penalty)
 
-    #TODO: add r5: NPV
-    #whenever you mine, you incur capex: -100
-    #at everytime step, incur opex: -10
-    #at everytime step, generate revenue: price*production
+    # Obj #5: maximize profit
+    r5 = compute_r5(P, s, a, capex_per_mine=capex_per_mine, opex_per_mine=opex_per_mine, price=material_price)
 
-    reward = dot([r1, r2, r3, r4], P.obj_weights) #TODO:modify this to include r5, num_objectives
+    reward = dot([r1, r2, r3, r4, r5], P.obj_weights) 
 
     return reward
 end
@@ -81,23 +142,49 @@ function POMDPs.transition(P::LiPOMDP, s::State, a::Action)
     else
         sp = deepcopy(s) # Make a copy!!! need to be wary of this in Julia deepcopy might be slow
         sp.t = s.t + 1  # Increase time by 1 in all cases
+        ΔV = 0.0
+        ΔI = 0.0
+        new_mine_output = 0.0
+
+        #process new mine
         action_type = get_action_type(a)
         site_number = get_site_number(a)
-
-        if action_type == "MINE" 
+        
+        if action_type == "MINE"             
             if s.deposits[site_number] >= P.mine_output
-                mine_output = P.mine_output
+                new_mine_output = P.mine_output
             else
-                mine_output = s.deposits[site_number]
+                new_mine_output = s.deposits[site_number]
             end
-            sp.deposits[site_number] = s.deposits[site_number] - mine_output
-            sp.Vₜ = s.Vₜ + mine_output
+            sp.deposits[site_number] = s.deposits[site_number] - new_mine_output            
+            sp.have_mined[site_number] = true
+
+            if get_site_number(a) in [1, 2]
+                ΔV = new_mine_output
+            else
+                ΔI = new_mine_output
+            end
         end
 
-        # If we're mining, update state to reflect that we now have mined and can no longer explore
-        if action_type == "MINE"
-            sp.have_mined[site_number] = true
+        # process the existing mines
+        for i in 1:4 #TODO: make this more flexible
+            if s.have_mined[i]
+                if s.deposits[i] >= P.mine_output
+                    mine_output = P.mine_output
+                else
+                    mine_output = s.deposits[i]
+                end
+                sp.deposits[i] = s.deposits[i] - mine_output
+                if i in [1, 2]                    
+                    ΔV += mine_output
+                else
+                    ΔI += mine_output
+                end
+            end
         end
+
+        sp.Vₜ = s.Vₜ + ΔV
+        sp.Iₜ = s.Iₜ + ΔI
 
         return Deterministic(sp)
     end
@@ -164,9 +251,10 @@ function POMDPs.initialize_belief(up::LiBeliefUpdater)
 
     t = 1.0
     V_tot = 0.0
+    I_tot = 0.0
     have_mined = [false, false, false, false]
     
-    return LiBelief(deposit_dists, t, V_tot, have_mined)
+    return LiBelief(deposit_dists, t, V_tot, I_tot, have_mined)
 end
 
 POMDPs.initialize_belief(up::Updater, dist) = POMDPs.initialize_belief(up)
@@ -187,7 +275,7 @@ function POMDPs.update(up::Updater, b::LiBelief, a::Action, o::Vector{Float64})
         bi_prime = Normal(μ_prime, σ_prime)
         
         # Default, not including updated belief
-        belief = LiBelief([b.deposit_dists[1], b.deposit_dists[2], b.deposit_dists[3], b.deposit_dists[4]], b.t + 1, b.V_tot, b.have_mined)
+        belief = LiBelief([b.deposit_dists[1], b.deposit_dists[2], b.deposit_dists[3], b.deposit_dists[4]], b.t + 1, b.V_tot, b.I_tot, b.have_mined)
         
         # Now, at the proper site number, update to contain the updated belief
         belief.deposit_dists[site_number] = bi_prime
@@ -198,20 +286,29 @@ function POMDPs.update(up::Updater, b::LiBelief, a::Action, o::Vector{Float64})
     # MINE actions: Shifts our mean of the distribution corresponding to the proper deposit down by 1 (since we
     # have just mined one unit deterministically). Does not affect certainty at all. 
     else # a must be a MINE action
+
         bi = b.deposit_dists[site_number]
         μi = mean(bi)
         σi = std(bi)
         
-        if μi >= 1
-            μi_prime = μi - 1
-            n_units_mined = 1  # we were able to mine a unit
+        if μi >= up.P.mine_output
+            μi_prime = μi - up.P.mine_output
+            n_units_mined = up.P.mine_output
         else 
-            μi_prime = μi
-            n_units_mined = 0  # we did NOT mine a unit
+            μi_prime = 0
+            n_units_mined = μi  # the mine has been depleted
+        end
+
+        I_tot_prime = b.I_tot
+        V_tot_prime = b.V_tot
+        if site_number in [1, 2]
+            I_tot_prime += n_units_mined
+        else
+            V_tot_prime += n_units_mined
         end
         
         # Default, not including updated belief
-        belief = LiBelief([b.deposit_dists[1], b.deposit_dists[2], b.deposit_dists[3], b.deposit_dists[4]], b.t + 1, b.V_tot + n_units_mined, [b.have_mined[1], b.have_mined[2], b.have_mined[3], b.have_mined[4]])
+        belief = LiBelief([b.deposit_dists[1], b.deposit_dists[2], b.deposit_dists[3], b.deposit_dists[4]], b.t + 1, V_tot_prime, I_tot_prime, [b.have_mined[1], b.have_mined[2], b.have_mined[3], b.have_mined[4]])
         # Now, at the proper site number, update to contain the updated belief
         belief.deposit_dists[site_number] = Normal(μi_prime, σi)
         belief.have_mined[site_number] = true
