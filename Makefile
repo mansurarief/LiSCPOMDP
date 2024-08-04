@@ -12,4 +12,8 @@ main:
 	@echo "Running main"
 	julia --project=. experiment.jl
 
+viz:
+	@echo "Running viz"
+	julia --project=. test_viz.jl	
+
 run_all: main experiment
