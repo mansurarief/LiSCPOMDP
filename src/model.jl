@@ -102,3 +102,8 @@ end
 struct LiBeliefUpdater <: Updater
     P::LiPOMDP
 end
+
+function POMDPTools.ModelTools.pdf(d::LiBelief{Normal{Float64}}, s)
+    1.0/length(d.deposit_dists)
+ end
+ 

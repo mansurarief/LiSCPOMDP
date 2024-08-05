@@ -155,4 +155,8 @@ function POMDPs.updater(policy::MCTS.DPWPlanner{GenerativeBeliefMDP{LiPOMDP, LiB
     return LiBeliefUpdater(policy.solved_estimate.policy.pomdp)
 end
 
+function POMDPs.updater(policy::MCTS.DPWPlanner{GenerativeBeliefMDP{LiPOMDP, LiBeliefUpdater, ContinueTerminalBehavior{LiPOMDP, LiBeliefUpdater}, LiBelief{Normal{Float64}}, Action}, LiBelief{Normal{Float64}}, Action, MCTS.SolvedRolloutEstimator{EfficiencyPolicyWithUncertainty, Random._GLOBAL_RNG}, RandomActionGenerator{Random._GLOBAL_RNG}, MCTS.var"#18#22", Random._GLOBAL_RNG})
+    return LiBeliefUpdater(policy.solved_estimate.policy.pomdp)
+ end 
 
+ 

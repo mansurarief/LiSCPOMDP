@@ -31,7 +31,7 @@ println(fieldnames(typeof(initialstate(pomdp).val)))
 
 sp, o, r = gen(pomdp, s, a, rng)
 
-mdp = GenerativeBeliefMDP(pomdp, up)
+mdp = GenerativeBeliefMDP(pomdp, up, terminal_behavior=ContinueTerminalBehavior(pomdp, up))
 
 random_planner = RandPolicy(pomdp)
 strong_planner = EfficiencyPolicy(pomdp, [true, true, true, true])
@@ -50,7 +50,7 @@ mcts_solver = DPWSolver(
  )
 mcts_planner = solve(mcts_solver, mdp)
 
-despot_solver = DESPOTSolver(bounds=(-1000.0, 1000.0))
+despot_solver = DESPOTSolver(bounds=IndependentBounds(-1000.0, 1000.0, check_terminal = true))
 despot_planner = solve(despot_solver, pomdp)
 
 # # POMCPOW Solver
