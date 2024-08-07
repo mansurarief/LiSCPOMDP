@@ -24,7 +24,8 @@ export
     LiBeliefUpdater,
     State, 
     Action,
-    initialize_lipomdp
+    initialize_lipomdp,
+    mine_params
 include("model.jl")
 
 export
@@ -39,7 +40,8 @@ export
     get_site_number,
     splice,
     plot_results,
-    get_rewards
+    get_rewards,
+    get_action_emission
 include("utils.jl")
 
 export

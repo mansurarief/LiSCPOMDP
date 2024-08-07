@@ -7,39 +7,60 @@ Extended by: CJ Oshiro, Mansur Arief, Mykel Kochenderfer
 
 POMDPs.support(b::LiBelief) = rand(b)  #TODO: change to be the support of deposit distributions
 
-
 function POMDPs.initialstate(P::LiPOMDP)
     return Deterministic(P.init_state)
 end
 
 function POMDPs.states(P::LiPOMDP)
-
     deposits = collect(P.V_deposit_min:P.Δdeposit:P.V_deposit_max)
-    V_tot_bounds = collect(P.V_deposit_min * P.n_deposits:P.ΔV:P.V_deposit_max * P.n_deposits )
-    I_tot_bounds = collect(P.V_deposit_min * P.n_deposits:P.ΔV:P.V_deposit_max * P.n_deposits )
+    V_tot_bounds = collect(P.V_deposit_min * P.n_deposits:P.ΔV:P.V_deposit_max * P.n_deposits)
+    I_tot_bounds = collect(P.V_deposit_min * P.n_deposits:P.ΔV:P.V_deposit_max * P.n_deposits)
     booleans = [true, false]
     time_bounds = collect(1:P.time_horizon)
 
+    # Create a list of deposit variables and boolean variables based on the number of deposits
+    deposits_combinations = Iterators.product(fill(deposits, P.n_deposits)...)
+    boolean_combinations = Iterators.product(fill(booleans, P.n_deposits)...)
+    
+    # Combine all iterators into one
+    all_combinations = Iterators.product(deposits_combinations, V_tot_bounds, I_tot_bounds, time_bounds, boolean_combinations)
 
-    # deposits_combinations = Iterators.product(d_ for d_ in fill(deposits, P.n_deposits)) #TODO: make this more flexible
-    all_combinations = Iterators.product(deposits, deposits, deposits, deposits, V_tot_bounds, I_tot_bounds, time_bounds, booleans, booleans, booleans, booleans)
-    𝒮 = [State([s[1], s[2], s[3], s[4]],  s[5], s[6], s[7], [s[8], s[9], s[10], s[11]]) for s in all_combinations] 
+    # Create the states from the combinations
+    𝒮 = [State(collect(s[1]), s[2], s[3], s[4], collect(s[5])) for s in all_combinations] 
     push!(𝒮, P.null_state)
 
     return 𝒮
-
 end
 
+
 # Removed the dependency on the belief
-function POMDPs.actions(P::LiPOMDP)
+#=function POMDPs.actions(P::LiPOMDP)
     potential_actions = [MINE1, MINE2, MINE3, MINE4, EXPLORE1, EXPLORE2, EXPLORE3, EXPLORE4]
     return potential_actions
+end=#
+
+#Generate all Possible actions based of n_deposits
+function POMDPs.actions(P::LiPOMDP)
+    potential_mine_actions = []
+    potential_explore_actions = []
+    for i in 1:P.n_deposits
+        push!(potential_mine_actions, "MINE$i")
+        push!(potential_explore_actions, "EXPLORE$i")
+    end
+
+    for i in 1:length(potential_mine_actions)
+        potential_mine_actions[i] = Action(potential_mine_actions[i])
+        potential_explore_actions[i] = Action(potential_explore_actions[i])
+    end
+
+    return vcat(potential_mine_actions, potential_explore_actions)
+    
 end
 
 function compute_r1(P::LiPOMDP, s::State, a::Action; domestic_mining_penalty=-2000)
     action_type = get_action_type(a)
     site_num = get_site_number(a)
-    domestic_mining_actions = [MINE1, MINE2]
+    domestic_mining_actions = ["MINE1", "MINE2"]
 
     if action_type == "MINE" && !s.have_mined[site_num]
         penalty = domestic_mining_penalty
@@ -100,7 +121,7 @@ end
 
 function POMDPs.reward(P::LiPOMDP, s::State, a::Action)
 
-    domestic_mining_actions = [MINE1, MINE2]
+    #domestic_mining_actions = [MINE1, MINE2]
 
     if isterminal(P, s)
         return 0
@@ -167,7 +188,7 @@ function POMDPs.transition(P::LiPOMDP, s::State, a::Action)
         end
 
         # process the existing mines
-        for i in 1:4 #TODO: make this more flexible
+        for i in 1:P.n_deposits #TODO: make this more flexible
             if s.have_mined[i]
                 if s.deposits[i] >= P.mine_output
                     mine_output = P.mine_output
@@ -208,7 +229,7 @@ function POMDPs.observation(P::LiPOMDP, a::Action, sp::State)
     action_type = get_action_type(a)  # "EXPLORE" or "MINE"
 
     sentinel_dist = DiscreteNonParametric([-1.], [1.])
-    temp::Vector{UnivariateDistribution} = fill(sentinel_dist, 4)
+    temp::Vector{UnivariateDistribution} = fill(sentinel_dist, P.n_deposits)
 
     # handle degenerate case where we have no more Li at this site
     if sp.deposits[site_number] <= 0
@@ -241,18 +262,23 @@ POMDPs.discount(P::LiPOMDP) = P.γ
 POMDPs.isterminal(P::LiPOMDP, s::State) = s == P.null_state || s.t >= P.time_horizon
 
 function POMDPs.initialize_belief(up::LiBeliefUpdater)
-
+#=
     deposit_dists = [
         Normal(up.P.init_state.deposits[1]),
         Normal(up.P.init_state.deposits[2]),
         Normal(up.P.init_state.deposits[3]),
         Normal(up.P.init_state.deposits[4])
     ]
+=#
+    deposit_dists = fill(Normal(), up.P.n_deposits)
+    for i in 1:up.P.n_deposits
+        deposit_dists[i] = Normal(up.P.init_state.deposits[i])
+    end
 
     t = 1.0
     V_tot = 0.0
     I_tot = 0.0
-    have_mined = [false, false, false, false]
+    have_mined = [false for i in 1:up.P.n_deposits]
     
     return LiBelief(deposit_dists, t, V_tot, I_tot, have_mined)
 end
@@ -275,8 +301,14 @@ function POMDPs.update(up::Updater, b::LiBelief, a::Action, o::Vector{Float64})
         bi_prime = Normal(μ_prime, σ_prime)
         
         # Default, not including updated belief
-        belief = LiBelief([b.deposit_dists[1], b.deposit_dists[2], b.deposit_dists[3], b.deposit_dists[4]], b.t + 1, b.V_tot, b.I_tot, b.have_mined)
-        
+        #belief = LiBelief([b.deposit_dists[1], b.deposit_dists[2], b.deposit_dists[3], b.deposit_dists[4]], b.t + 1, b.V_tot, b.I_tot, b.have_mined)
+        deposits = zeros(up.P.n_deposits)
+        n_deposits = P.n_deposits
+
+        deposits = [(b.deposit_dists[i]) for i in 1:n_deposits]
+
+        belief = LiBelief(deposits, b.t + 1, b.V_tot, b.I_tot, b.have_mined)
+
         # Now, at the proper site number, update to contain the updated belief
         belief.deposit_dists[site_number] = bi_prime
         
@@ -308,7 +340,15 @@ function POMDPs.update(up::Updater, b::LiBelief, a::Action, o::Vector{Float64})
         end
         
         # Default, not including updated belief
-        belief = LiBelief([b.deposit_dists[1], b.deposit_dists[2], b.deposit_dists[3], b.deposit_dists[4]], b.t + 1, V_tot_prime, I_tot_prime, [b.have_mined[1], b.have_mined[2], b.have_mined[3], b.have_mined[4]])
+        #belief = LiBelief([b.deposit_dists[1], b.deposit_dists[2], b.deposit_dists[3], b.deposit_dists[4]], b.t + 1, V_tot_prime, I_tot_prime, [b.have_mined[1], b.have_mined[2], b.have_mined[3], b.have_mined[4]])
+        n_deposits = P.n_deposits
+        deposits = zeros(n_deposits)
+        have_mined = zeros(n_deposits)
+        
+        deposits = [(b.deposit_dists[i]) for i in 1:n_deposits]
+        have_mined = [b.have_mined[i] for i in 1:n_deposits]
+
+        belief = LiBelief(deposits, b.t + 1, b.V_tot, b.I_tot, b.have_mined)
         # Now, at the proper site number, update to contain the updated belief
         belief.deposit_dists[site_number] = Normal(μi_prime, σi)
         belief.have_mined[site_number] = true

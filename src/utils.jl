@@ -180,10 +180,13 @@ end
 
 # Inputs an action, outputs the site number of that action
 function get_site_number(a::Action)
-    action_str = string(a)
-    len = length(action_str)
-    deposit_number = Int(action_str[len]) - 48  # -48 because Int() gives me the ascii code
-    return deposit_number
+    a = a.a
+    len = length(a)
+    if (a[1:4] == "MINE")
+        return parse(Int64, a[5:len])
+    else
+        return parse(Int64, a[8:len])
+    end
 end
 
 # I'm sure there's some builtin for this but I couldn't find it lol. Splices a string
@@ -197,30 +200,12 @@ end
 
 # Inputs an action, outputs either MINE or EXPLORE as a string
 function get_action_type(a::Action)
-    action_str = string(a)
-    len = length(action_str)
-    action_type = splice(1, len - 1, action_str)
-    return action_type
-end
-
-# Hardcoded function to convert a string to an action
-function str_to_action(s::String)
-    if s == "MINE1"
-        return MINE1
-    elseif s == "MINE2"
-        return MINE2
-    elseif s == "MINE3"
-        return MINE3
-    elseif s == "MINE4"
-        return MINE4
-    elseif s == "EXPLORE1"
-        return EXPLORE1
-    elseif s == "EXPLORE2"
-        return EXPLORE2
-    elseif s == "EXPLORE3"
-        return EXPLORE3
+    a = a.a
+    len = length(a)
+    if (a[1:4] == "MINE")
+        return "MINE"
     else
-        return EXPLORE4
+        return "EXPLORE"
     end
 end
 

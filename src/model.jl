@@ -12,9 +12,9 @@ Extended by: CJ Oshiro, Mansur Arief, Mykel Kochenderfer
     have_mined::Vector{Bool}  # Boolean value to represent whether or not we have taken a mine action
 end
 
-
-# All potential actions
-@enum Action MINE1 MINE2 MINE3 MINE4 EXPLORE1 EXPLORE2 EXPLORE3 EXPLORE4 #TODO: make this more flexible
+@with_kw mutable struct Action
+    a::String
+end
 
 
 @with_kw mutable struct Observation #TODO: implement this as part of your pomdp
@@ -106,4 +106,33 @@ end
 function POMDPTools.ModelTools.pdf(d::LiBelief{Normal{Float64}}, s)
     1.0/length(d.deposit_dists)
  end
+
+# Allows user to change mine parameters of pomdp. User must specify init_state.
+#mine_params(pomdp, n_deposits, deposits vector, objective weights vector, emissions vector)
+function mine_params(
+    P::LiPOMDP,
+    n_deposits::Int64,
+    init_mine_vols::Vector{Float64},
+    obj_weights::Vector{Float64} = zeros(n_deposits),
+    CO2_emissions::Vector{Int64} = zeros(Int64, n_deposits)
+ )
+    P.n_deposits = n_deposits
+ 
+    if sum(obj_weights) == 0 
+        P.obj_weights = fill((1/n_deposits, n_deposits))
+    else
+        P.obj_weights = obj_weights
+    end
+
+    if sum(CO2_emissions) == 0
+        CO2_emissions = [rand(2:9) for _ in 1:length(CO2_emissions)]
+    else   
+        P.CO2_emissions = CO2_emissions
+    end
+ 
+    P.null_state = State(fill(-1, n_deposits), -1, -1, -1, fill(false, n_deposits))
+    init_state = State(init_mine_vols, 1, 0.0, 0.0, fill(0, n_deposits))
+    P.init_state = init_state
+
+end
  
