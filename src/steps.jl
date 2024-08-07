@@ -24,11 +24,11 @@ using LinearAlgebra
 Random.set_global_seed!(0)
 
 # Initializing the POMDP, Belief Updater, and initial state, as well as the MDP version of the POMDP for MCTS
-pomdp = LiPOMDP() #always use continous and use POMCPOW obs widening params to control the discretization
+pomdp = initialize_lipomdp() #always use continous and use POMCPOW obs widening params to control the discretization
 up = LiBeliefUpdater(pomdp)
 s0 = pomdp.init_state
 #b0 = initialize_belief(up, s0)
-mdp = GenerativeBeliefMDP(pomdp, up)
+mdp = GenerativeBeliefMDP(pomdp, up, terminal_behavior=ContinueTerminalBehavior(pomdp, up))
 
 # benchmark planners (from policies.jl)
 random_planner = RandomPolicy(pomdp)
@@ -62,8 +62,8 @@ solver = POMCPOW.POMCPOWSolver(
 ) # Estimate value should fix the previous problem with action functions
 pomcpow_planner = solve(solver, pomdp)
 
-planners = [random_planner, strong_planner, robust_planner, eco_planner, pomcpow_planner, mcts_planner] #
-
+#planners = [random_planner, strong_planner, robust_planner, eco_planner, pomcpow_planner, mcts_planner] #
+planners = [mcts_planner]
 n_reps=20
 max_steps=15
 
@@ -72,9 +72,9 @@ for planner in planners
     println(" ")
     println("=====Simulating ", typeof(planner), "=====")
     println(" ")
-    for (s, a, o, r) in stepthrough(pomdp, pomcpow_planner, "s,a,o,r", max_steps=30)
+    for (s, a, o, r) in stepthrough(pomdp, planner, "s,a,o,r", max_steps=30)
         println("in state $s")
-        println("took action $o")
+        println("took action $a")
         println("received observation $o and reward $r")
     end
 end
