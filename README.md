@@ -1,5 +1,5 @@
 # LiPOMDPs.jl
-[![CI](https://github.com/mansurarief/LiSCPOMDPs.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/mansurarief/LiSCPOMDPs.jl/actions/workflows/CI.yml)
+[![CI](https://github.com/mansurarief/LiSCPOMDP.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/mansurarief/LiSCPOMDP.jl/actions/workflows/CI.yml)
 
 
 The packaged version of the original [LiSCPOMDP](https://github.com/yalonso03/LiSCPOMDP) by [Yasmine Alonso](https://github.com/yalonso03). An example usage is as follows:
