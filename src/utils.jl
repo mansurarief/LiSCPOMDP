@@ -174,12 +174,15 @@ function get_action_emission(P, a)
     action_number = get_site_number(a)
     
     # Subtract carbon emissions (if relevant)
-    r3 = (action_type == "MINE") ? P.CO2_emissions[action_number] * -1 : 0
+    r3 = (action_type == "MINE") ? P.e[action_number] * -1 : 0
     return r3
 end
 
 # Inputs an action, outputs the site number of that action
 function get_site_number(a::Action)
+    if a == DONOTHING
+        return 0
+    end
     action_str = string(a)
     len = length(action_str)
     deposit_number = Int(action_str[len]) - 48  # -48 because Int() gives me the ascii code
@@ -197,6 +200,10 @@ end
 
 # Inputs an action, outputs either MINE or EXPLORE as a string
 function get_action_type(a::Action)
+    if a == DONOTHING
+        return "DONOTHING"
+    end
+
     action_str = string(a)
     len = length(action_str)
     action_type = splice(1, len - 1, action_str)
@@ -332,7 +339,7 @@ end
 
 # Make a copy of the state
 function Base.deepcopy(s::State)
-    return State(deepcopy(s.deposits), s.t, s.Vₜ, s.Iₜ, deepcopy(s.have_mined))  # don't have to copy t and Vₜ cuz theyre immutable i think
+    return State(deepcopy(s.v), s.t, s.Vₜ, s.Iₜ, deepcopy(s.m))  # don't have to copy t and Vₜ cuz theyre immutable i think
 end
 
 # Input a belief and randomly produce a state from it 
@@ -346,7 +353,7 @@ function Base.rand(rng::AbstractRNG, b::LiBelief)
 end
 
 # Define == operator to use in the termination thing, just compares two states
-Base.:(==)(s1::State, s2::State) = (s1.deposits == s2.deposits) && (s1.t == s2.t) && (s1.Vₜ == s2.Vₜ) && (s1.Iₜ == s2.Iₜ) &&  (s1.have_mined == s2.have_mined)
+Base.:(==)(s1::State, s2::State) = (s1.v == s2.v) && (s1.t == s2.t) && (s1.Vₜ == s2.Vₜ) && (s1.Iₜ == s2.Iₜ) &&  (s1.m == s2.m)
 
 ##Helper Functions Moved from LiPOMDP.jl
 function random_initial_state(P::LiPOMDP, rng::AbstractRNG=Random.default_rng())
@@ -374,8 +381,8 @@ function random_initial_belief(s::State, rng::AbstractRNG=Random.default_rng())
 end
 
 # kalman_step is used in the belief updater update function
-function kalman_step(P::LiPOMDP, μ::Float64, σ::Float64, z::Float64)
-    k = σ / (σ + P.σ_obs)  # Kalman gain
+function kalman_step(σo, μ::Float64, σ::Float64, z::Float64)
+    k = σ / (σ + σo)  # Kalman gain
     μ_prime = μ + k * (z - μ)  # Estimate new mean
     σ_prime = (1 - k) * σ   # Estimate new uncertainty
     return μ_prime, σ_prime
