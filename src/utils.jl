@@ -183,6 +183,7 @@ function get_site_number(a::Action)
     if a == DONOTHING
         return 0
     end
+    
     action_str = string(a)
     len = length(action_str)
     deposit_number = Int(action_str[len]) - 48  # -48 because Int() gives me the ascii code
@@ -344,12 +345,12 @@ end
 
 # Input a belief and randomly produce a state from it 
 function Base.rand(rng::AbstractRNG, b::LiBelief)
-    deposit_samples = rand.(rng, b.deposit_dists)
+    v = rand.(rng, b.v_dists)
     t = b.t
-    V_tot = b.V_tot
-    I_tot = b.I_tot
-    have_mined = b.have_mined
-    return State(deposit_samples, t, V_tot, I_tot, have_mined)
+    Vₜ = b.Vₜ
+    Iₜ = b.Iₜ
+    m = b.m
+    return State(v, t, Vₜ, Iₜ, m)
 end
 
 # Define == operator to use in the termination thing, just compares two states

@@ -5,34 +5,16 @@ Extended by: CJ Oshiro, Mansur Arief, Mykel Kochenderfer
 =#
 
 
-POMDPs.support(b::LiBelief) = rand(b)  #TODO: change to be the support of deposit distributions
-
-
 function POMDPs.initialstate(P::LiPOMDP)
     return Deterministic(P.init_state)
 end
 
-function POMDPs.states(P::LiPOMDP)
 
-    deposits = collect(P.V_deposit_min:P.Δdeposit:P.V_deposit_max)
-    V_tot_bounds = collect(P.V_deposit_min * P.n:P.ΔV:P.V_deposit_max * P.n )
-    I_tot_bounds = collect(P.V_deposit_min * P.n:P.ΔV:P.V_deposit_max * P.n )
-    booleans = [true, false]
-    time_bounds = collect(1:P.T)
-    all_combinations = Iterators.product(deposits, deposits, deposits, deposits, V_tot_bounds, I_tot_bounds, time_bounds, booleans, booleans, booleans, booleans)
-    𝒮 = [State([s[1], s[2], s[3], s[4]],  s[5], s[6], s[7], [s[8], s[9], s[10], s[11]]) for s in all_combinations] 
-    println("length of state space: ", length(𝒮))
-    println(𝒮[1])
-    println(P.null_state)
-    push!(𝒮, P.null_state)
-    return 𝒮 #TODO: fix error
-end
-
-# Removed the dependency on the belief
 function POMDPs.actions(P::LiPOMDP)
     potential_actions = [DONOTHING MINE1 MINE2 MINE3 MINE4 EXPLORE1 EXPLORE2 EXPLORE3 EXPLORE4 RESTORE1 RESTORE2 RESTORE3 RESTORE4]
     return potential_actions
 end
+
 
 function compute_r1(P::LiPOMDP, s::State, a::Action)
     action_type = get_action_type(a)
@@ -199,7 +181,8 @@ function POMDPs.gen(P::LiPOMDP, s::State, a::Action, rng::AbstractRNG)
     r = reward(P, s, a, E, Z)
 
     #observation
-    o = rand(rng, observation(P, a, sp))  
+    v_pred = rand(rng, observation(P, a, sp))
+    o = Observation(v=v_pred, E=E)
 
     return (sp=sp, o=o, r=r)  
 end
@@ -207,19 +190,19 @@ end
 
 function POMDPs.observation(P::LiPOMDP, a::Action, sp::State)
 
-    site_number = get_site_number(a)  #1, 2, 3, or 4, basically last character of    
-    action_type = get_action_type(a)  # "EXPLORE" or "MINE"
+    site_number = get_site_number(a)  
+    action_type = get_action_type(a)  
 
     sentinel_dist = DiscreteNonParametric([-1.], [1.])
-    temp::Vector{UnivariateDistribution} = fill(sentinel_dist, 4)
+    temp::Vector{UnivariateDistribution} = fill(sentinel_dist, P.n)
 
     # handle do nothing action
     if site_number <= 0
-        site_dist = sentinel_dist
         return product_distribution(temp)        
     end
 
     # handle degenerate case where we have no more Li at this site    
+    
     if sp.v[site_number] <= 0
         site_dist = sentinel_dist
         return product_distribution(temp)        
@@ -264,27 +247,31 @@ function POMDPs.initialize_belief(up::LiBeliefUpdater)
         Normal(up.P.init_state.v[3]),
         Normal(up.P.init_state.v[4])
     ]
+
     
-    return LiBelief(deposit_dists)
+    return LiBelief(deposit_dists, 1, 0.0, 0.0, [false, false, false, false])
 end
 
-POMDPs.initialize_belief(up::Updater, dist) = POMDPs.initialize_belief(up)
 
 
-function POMDPs.update(up::Updater, b::LiBelief, a::Action, o::Vector{Float64})
+function POMDPs.update(up::Updater, b::LiBelief, a::Action, o::Observation)
+    
+    # println("Observation: $o, Belief: $b, Action: $a")
     
     action_type = get_action_type(a)
     site_number = get_site_number(a)
     P = up.P
+    ΔV = 0.0
+    ΔI = 0.0
 
-    bp = LiBelief([b.v_dists[1], b.v_dists[2], b.v_dists[3], b.v_dists[4]])
+    v_dists= [b.v_dists[1], b.v_dists[2], b.v_dists[3], b.v_dists[4]]
 
     for j in 1:P.n
-        if o[j] != -1
+        if o.v[j] != -1
             bi = b.v_dists[site_number]  # This is a normal distribution
             μi = mean(bi)
             σi = std(bi)
-            zi = o[site_number]
+            zi = o.v[site_number]
             if j == site_number && action_type == "EXPLORE" 
                 σo = P.σo   #use observation noise   
             else
@@ -292,9 +279,40 @@ function POMDPs.update(up::Updater, b::LiBelief, a::Action, o::Vector{Float64})
             end
             μ_prime, σ_prime = kalman_step(σo, μi, σi, zi)
             bi_prime = Normal(μ_prime, σ_prime)
-            bp.v_dists[site_number] = bi_prime
+            v_dists[site_number] = bi_prime
+        end
+
+        if j in P.Jd
+            ΔV += o.E[j]
+        else
+            ΔI += o.E[j]
         end
     end
+
+    
+    if site_number > 0
+        if site_number in P.Jd
+            ΔV += o.E[site_number]
+        else
+            ΔI += o.E[site_number]
+        end
+    end
+
+    
+    if action_type == "MINE"
+        m = [false, false, false, false]
+        m[site_number] = true
+    else
+        m = b.m
+    end
+
+    bp = LiBelief(
+        v_dists,
+        b.t + 1,
+        b.Vₜ + ΔV,
+        b.Iₜ + ΔI,
+        m
+    )
 
     return bp
 end

@@ -17,11 +17,12 @@ end
 @enum Action DONOTHING MINE1 MINE2 MINE3 MINE4 EXPLORE1 EXPLORE2 EXPLORE3 EXPLORE4 RESTORE1 RESTORE2 RESTORE3 RESTORE4
 
 
-@with_kw mutable struct Observation #TODO: implement this as part of your pomdp
+@with_kw mutable struct Observation
     v::Vector{Float64} # [v₁, v₂, v₃, v₄]
+    E::Vector{Float64} # [E₁, E₂, E₃, E₄]
 end
 
-@with_kw mutable struct LiPOMDP <: POMDP{State, Action, Any} 
+@with_kw mutable struct LiPOMDP <: POMDP{State, Action, Observation} 
     td::Int64                       # time goal, want to wait 10 years before mining domestically
     σo::Float64                     # Standard deviation of the observation noise
     γ::Float64                      # discounted reward
@@ -132,8 +133,16 @@ end
 
 struct LiBelief{T<:UnivariateDistribution} 
     v_dists::Vector{T}
+    t::Int64  # current time
+    Vₜ::Float64  # current amt of Li mined domestically up to time t
+    Iₜ::Float64 # current amt of Li imported up to time t
+    m::Vector{Bool}  # Boolean value to represent whether or not we have taken a mine action    
 end
 
 struct LiBeliefUpdater <: Updater
     P::LiPOMDP
 end
+
+POMDPs.support(b::LiBelief) = [rand(b) for _ in 1:100]
+POMDPs.pdf(ps::Distributions.ProductDistribution, v::Vector{Float64}) = prod(pdf(ps.dists[j], v[j]) for j in 1:length(ps))
+POMDPs.pdf(ps::Distributions.ProductDistribution, o::Observation) = prod(pdf(ps.dists[j], o.v[j]) for j in 1:length(ps))

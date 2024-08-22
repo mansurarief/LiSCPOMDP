@@ -86,10 +86,10 @@ function POMDPs.action(p::EfficiencyPolicyWithUncertainty, b::LiBelief)
     
     # If we have explored all deposits, decide which one to mine that is allowed by the belief.
     # We will consider both the expected Lithium and the uncertainty in our decision.    
-    scores = zeros(p.pomdp.n_deposits)
-    for i in 1:p.pomdp.n_deposits
+    scores = zeros(p.pomdp.n)
+    for i in 1:p.pomdp.n
         if can_explore_here(eval(Meta.parse("MINE$(i)")), b)
-            score = mean(b.deposit_dists[i])  - p.lambda * std(b.deposit_dists[i])
+            score = mean(b.v_dists[i])  - p.lambda * std(b.v_dists[i])
         else
             score = -Inf
         end
