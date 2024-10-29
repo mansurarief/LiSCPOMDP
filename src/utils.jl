@@ -245,7 +245,7 @@ function can_explore_here(a::Action, b::Any)
         b = convert_particle_collection_to_libelief(b)
     end
     
-    return !b.have_mined[site_number]        
+    return !b.m[site_number]        
 end
 
 
@@ -317,8 +317,8 @@ function convert_particle_collection_to_libelief(part_collection::POMCPOW.StateB
     #@assert(all([state.t == states_vec[1].t for state in states_vec]))
     
     
-    # Create a new LiBelief with the mean, std of each Deposit, take the other fields (t, V_tot, have_mined) from the first particle
-    return LiBelief([Normal(μ1, σ1), Normal(μ2, σ2), Normal(μ3, σ3), Normal(μ4, σ4)], states_vec[1].t, states_vec[1].Vₜ, states_vec[1].Iₜ, [mine for mine in states_vec[1].have_mined])
+    # Create a new LiBelief with the mean, std of each Deposit, take the other fields (t, V_tot, m) from the first particle
+    return LiBelief([Normal(μ1, σ1), Normal(μ2, σ2), Normal(μ3, σ3), Normal(μ4, σ4)], states_vec[1].t, states_vec[1].Vₜ, states_vec[1].Iₜ, [mine for mine in states_vec[1].m])
 end
 
 #Base functions ########################
@@ -377,8 +377,8 @@ function random_initial_belief(s::State, rng::AbstractRNG=Random.default_rng())
     t = s.t
     V_tot = s.Vₜ
     I_tot = s.Iₜ
-    have_mined = s.have_mined
-    return LiBelief(deposit_dists, t, V_tot, I_tot, have_mined)
+    m = s.m
+    return LiBelief(deposit_dists, t, V_tot, I_tot, m)
 end
 
 # kalman_step is used in the belief updater update function
@@ -411,40 +411,44 @@ function get_rewards(pomdp, hist)
     for (_, step) in enumerate(hist)
         a = step.a
         s = step.s
+        o = step.o
         a_type = get_action_type(a)
         dnum = get_site_number(a)
 
-        if a_type == "EXPLORE"
-            if !s.have_mined[dnum]
-                push!(explore_actions, dnum)
-                push!(explore_times, step.t)
-            end            
-        else
-            if !s.have_mined[dnum]
-                push!(invest_actions, dnum)
-                push!(invest_times, step.t)
-            end
-        end
-
-        for i in 1:4
-            if s.have_mined[i] 
-                if  s.deposits[i] > 0
-                    push!(mine_actions, i)
-                    push!(mine_times, step.t)
-                else
-                    push!(decommision_actions, i)
+        if a_type != "DONOTHING" 
+            if !s.m[dnum]                     
+                if a_type == "EXPLORE"            
+                    push!(explore_actions, dnum)
+                    push!(explore_times, step.t)
+                elseif a_type == "MINE"
+                    push!(invest_actions, dnum)
+                    push!(invest_times, step.t)
+                else 
+                    push!(decommision_actions, dnum)
                     push!(decommision_times, step.t)
                 end
             end
         end
 
-        r2_ = compute_r2(pomdp, s, a)
+        # for i in 1:p.n_deposits
+        #     if s.m[i] 
+        #         if  s.v[i] > 0
+        #             push!(mine_actions, i)
+        #             push!(mine_times, step.t)
+        #         else
+        #             push!(decommision_actions, i)
+        #             push!(decommision_times, step.t)
+        #         end
+        #     end
+        # end
+
+        r2_ = compute_r2(pomdp, s, a, o)
         push!(r1, compute_r1(pomdp, s, a))        
         push!(r2_domestic, r2_.domestic)
         push!(r2_imported, r2_.imported)
         push!(r3, compute_r3(pomdp, s, a))
-        push!(r4, compute_r4(pomdp, s, a))
-        push!(r5, compute_r5(pomdp, s, a)*0.25)
+        push!(r4, compute_r4(pomdp, s, a, o))
+        push!(r5, compute_r5(pomdp, s, a, o))
     end
 
     return (
@@ -457,7 +461,7 @@ function get_rewards(pomdp, hist)
 end
 
 function plot_results(pomdp::LiPOMDP, df::NamedTuple;ylims=(-200, 200))
-    T = pomdp.time_horizon
+    T = pomdp.T
     #plot 1: actions vs time
     p0 = scatter(df.t_explore, df.a_explore, label="EXPLORE", markersize=10, xticks=1:T);
     scatter!(df.t_invest, df.a_invest, label="INVEST", markersize=10);
@@ -471,7 +475,7 @@ function plot_results(pomdp::LiPOMDP, df::NamedTuple;ylims=(-200, 200))
         ylabel="Deposit Site", xlabel="Time", 
         title="Actions vs Time", 
         legend=:outerbottomright);
-    vline!([pomdp.t_goal], label="Time Delay Goal", color=:red, linestyle=:dash);        
+    vline!([pomdp.td], label="Time Delay Goal", color=:red, linestyle=:dash);        
 
     #set xticks to be integers
     p1 = bar(df.r1, label="r1", xlabel="Time", ylabel="\$ Value (in Millions)", title="Domestic Mining (Penalty)", legend=false, xticks=0:5:T, ylims=ylims);
@@ -483,4 +487,8 @@ function plot_results(pomdp::LiPOMDP, df::NamedTuple;ylims=(-200, 200))
     prow1 = plot(p5, p1, p4, layout=(1, 3), margin=3mm);  
     prow2 = plot(p2, p3, layout=(1, 2));  
     return (action=p0, econ=prow1, other=prow2)
+end
+
+function save_policy(policy, filename)    
+    return save(filename, "policy", policy)
 end

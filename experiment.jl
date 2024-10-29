@@ -16,7 +16,7 @@ rng = MersenneTwister(1)
 
 pomdp = initialize_lipomdp() 
 
-s = pomdp.init_state
+# s = pomdp.init_state
 # s.m = [true, false, false, false]
 
 # a = rand(rng, actions(pomdp))
@@ -38,7 +38,7 @@ println(fieldnames(typeof(initialstate(pomdp).val)))
 
 # sp, o, r = gen(pomdp, s, a, rng)
 
-mdp = GenerativeBeliefMDP(pomdp, up)
+# mdp = GenerativeBeliefMDP(pomdp, up)
 
 random_planner = RandPolicy(pomdp)
 # # strong_planner = EfficiencyPolicy(pomdp, [true, true, true, true])
@@ -46,24 +46,24 @@ robust_planner = EfficiencyPolicyWithUncertainty(pomdp, 1., [true, true, true, t
 # # eco_planner = EmissionAwarePolicy(pomdp, [true, true, true, true])
 
 # # # #MCTS Solver -- uses mdp version of pomdp
-mcts_solver = DPWSolver(
-     depth=8,
-     n_iterations = 100,
-     estimate_value=RolloutEstimator(robust_planner, max_depth=100),
-     enable_action_pw=false,
-     enable_state_pw=true,
-     k_state = 4.,
-    alpha_state = 0.1,
- )
-mcts_planner = solve(mcts_solver, mdp)
+# mcts_solver = DPWSolver(
+#      depth=8,
+#      n_iterations = 100,
+#      estimate_value=RolloutEstimator(robust_planner, max_depth=100),
+#      enable_action_pw=false,
+#      enable_state_pw=true,
+#      k_state = 4.,
+#     alpha_state = 0.1,
+#  )
+# mcts_planner = solve(mcts_solver, mdp)
 
-despot_solver = DESPOTSolver(bounds=(-20000.0, 20000.0))
-despot_planner = solve(despot_solver, pomdp)
+# despot_solver = DESPOTSolver(bounds=(-20000.0, 20000.0))
+# despot_planner = solve(despot_solver, pomdp)
 
 # # # POMCPOW Solver
 solver = POMCPOW.POMCPOWSolver(
      tree_queries=1000, 
-    #  estimate_value = estimate_value, #RolloutEstimator(RandomPolicy(pomdp)), #estimate_value,
+     estimate_value = RolloutEstimator(RandomPolicy(pomdp)), #estimate_value,
      k_observation=4., 
      alpha_observation=0.1, 
      max_depth=30, 
@@ -118,3 +118,5 @@ println("reward POMCPOW Planner: $(round(discounted_reward(phist), digits=2))")
 
 # o = rand(rng, prd)
 # pdf(prd, o)
+
+phist

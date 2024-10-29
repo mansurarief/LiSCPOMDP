@@ -20,6 +20,7 @@ end
 @with_kw mutable struct Observation
     v::Vector{Float64} # [v₁, v₂, v₃, v₄]
     E::Vector{Float64} # [E₁, E₂, E₃, E₄]
+    Z::Vector{Float64} # [Z₁, Z₂, Z₃, Z₄]
 end
 
 @with_kw mutable struct LiPOMDP <: POMDP{State, Action, Observation} 
@@ -75,7 +76,7 @@ function initialize_lipomdp(;
     Δdeposit=10.0,
     V_deposit_min=0.0,
     V_deposit_max=10.0,
-    obj_weights=[0.25, 0.25, 0.25, 0.25, 0.25],
+    obj_weights=[0.25, 0.05, 0.25, 0.25, 0.25],
     e=[3, 4, 6, 7],
     v0=[4100., 1800., 5500., 2500.],
     null_state=State([-1, -1, -1, -1], -1, -1, -1, [true, true, true, true]),

@@ -15,22 +15,39 @@ function POMDPs.actions(P::LiPOMDP)
     return potential_actions
 end
 
+function POMDPs.actions(P::LiPOMDP, s::State)
+    actions = [DONOTHING]
+
+    for i in 1:P.n
+        if !s.m[i]
+            push!(actions, Symbol("MINE$i"))
+            push!(actions, Symbol("EXPLORE$i"))
+        else
+            push!(actions, Symbol("RESTORE$i"))
+        end
+    end
+    
+
+end
+
 
 function compute_r1(P::LiPOMDP, s::State, a::Action)
     action_type = get_action_type(a)
     site_num = get_site_number(a)
 
-    if action_type == "MINE" && !s.m[site_num] && s.t < P.td && site_num in P.Jd
+    if action_type == "MINE" && s.t < P.td && site_num in P.Jd && !s.m[site_num] 
         penalty = P.pd
     else
         penalty = 0
     end
         
-    return penalty
+    return -penalty
 end
 
-function compute_r2(P::LiPOMDP, s::State, a::Action)
-    return (domestic=s.Vₜ, imported=s.Iₜ)
+function compute_r2(P::LiPOMDP, s::State, a::Action, o::Observation)
+    domestic = sum(o.E[j] for j in 1:P.n if j in P.Jd)
+    imported = sum(o.E[j] for j in 1:P.n if j in P.Ji)
+    return (domestic=domestic, imported=imported)
 end
 
 function compute_r3(P::LiPOMDP, s::State, a::Action)
@@ -54,11 +71,14 @@ function compute_r3(P::LiPOMDP, s::State, a::Action)
 
 end
 
-function compute_r4(P::LiPOMDP, s::State, a::Action, production::Float64)
-    return max(0, P.d[Int(s.t)] - production)
+function compute_r4(P::LiPOMDP, s::State, a::Action, o::Observation)
+    production = P.ρ * sum(o.E) + sum(o.Z)
+    return -max(0, P.d[Int(s.t)] - production)
 end
 
-function compute_r5(P::LiPOMDP, s::State, a::Action, E::Vector{Float64}, Z::Vector{Float64})
+function compute_r5(P::LiPOMDP, s::State, a::Action, o::Observation)
+    E = o.E
+    Z = o.Z
 
     production = P.ρ * sum(E) + sum(Z)
 
@@ -67,11 +87,11 @@ function compute_r5(P::LiPOMDP, s::State, a::Action, E::Vector{Float64}, Z::Vect
     action_type = get_action_type(a)
     site_num = get_site_number(a)
 
-    if action_type == "EXPLORE" && !s.m[site_num]
+    if action_type == "EXPLORE" #&& !s.m[site_num]
         reward -= P.ce
     end
 
-    if action_type == "MINE" && !s.m[site_num]
+    if action_type == "MINE" #&& !s.m[site_num]
         reward -= P.cb
     end
 
@@ -83,7 +103,7 @@ function compute_r5(P::LiPOMDP, s::State, a::Action, E::Vector{Float64}, Z::Vect
     reward -= sum(P.ct[j] * E[j] for j in 1:P.n) # transportation cost #TODO: add into paper
     reward -= sum(P.cp * Z[j] for j in 1:P.n) # processing cost #TODO: add into paper
 
-    if action_type == "RESTORE" && s.m[site_num]
+    if action_type == "RESTORE" #&& s.m[site_num]
         reward -= P.cr
     end
 
@@ -92,21 +112,21 @@ function compute_r5(P::LiPOMDP, s::State, a::Action, E::Vector{Float64}, Z::Vect
     return reward
 end
 
-function POMDPs.reward(P::LiPOMDP, s::State, a::Action, E::Vector{Float64}, Z::Vector{Float64})
+function POMDPs.reward(P::LiPOMDP, s::State, a::Action, o::Observation)
 
     if isterminal(P, s)
         return 0.0
     end
-
-    production = sum(Z) * P.ρ
+    
     r1 = compute_r1(P, s, a)
-    r2 = sum(compute_r2(P, s, a)) #r2 output is a tuple(domestic, imported)
+    r2 = sum(compute_r2(P, s, a, o)) #r2 output is a tuple(domestic, imported)
     r3 = compute_r3(P, s, a)
-    r4 = compute_r4(P, s, a, production)
-    r5 = compute_r5(P, s, a, E, Z)
+    r4 = compute_r4(P, s, a, o)
+    r5 = compute_r5(P, s, a, o)
     r = dot([r1, r2, r3, r4, r5], P.obj_weights)
 
-    return r
+
+    return (r1=r1, r2=r2, r3=r3, r4=r4, r5=r5, r=r)
 end
 
 
@@ -177,12 +197,12 @@ function POMDPs.gen(P::LiPOMDP, s::State, a::Action, rng::AbstractRNG)
 
     sp, E, L, Z = transition(P, s, a, rng)
 
-    #compute reward
-    r = reward(P, s, a, E, Z)
-
     #observation
     v_pred = rand(rng, observation(P, a, sp))
-    o = Observation(v=v_pred, E=E)
+    o = Observation(v=v_pred, E=E, Z=Z)
+
+    #compute reward
+    r1, r2, r3, r4, r5, r = reward(P, s, a, o)
 
     return (sp=sp, o=o, r=r)  
 end
@@ -237,7 +257,7 @@ end
 
 POMDPs.discount(P::LiPOMDP) = P.γ
 
-POMDPs.isterminal(P::LiPOMDP, s::State) = s == P.null_state || s.t >= P.T
+POMDPs.isterminal(P::LiPOMDP, s::State) = s == P.null_state || s.t > P.T
 
 function POMDPs.initialize_belief(up::LiBeliefUpdater)
 

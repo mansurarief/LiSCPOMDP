@@ -17,6 +17,7 @@ using Statistics
 using D3Trees
 using MCTS
 using Plots.PlotMeasures
+using JLD2
  
 export 
     LiPOMDP, 
@@ -39,7 +40,8 @@ export
     get_site_number,
     splice,
     plot_results,
-    get_rewards
+    get_rewards,
+    save_policy
 include("utils.jl")
 
 export

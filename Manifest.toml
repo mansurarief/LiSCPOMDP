@@ -2,7 +2,7 @@
 
 julia_version = "1.10.4"
 manifest_format = "2.0"
-project_hash = "24c6dc72ed92f6a8695e37de3530d52037eaaf59"
+project_hash = "27f47569cfb4e39fb842d9d35c0f6288e398304a"
 
 [[deps.ARDESPOT]]
 deps = ["BasicPOMCP", "CPUTime", "D3Trees", "POMDPTools", "POMDPs", "Parameters", "ParticleFilters", "Printf", "Random"]
@@ -560,6 +560,12 @@ version = "1.8.0"
 git-tree-sha1 = "a3f24677c21f5bbe9d2a714f95dcd58337fb2856"
 uuid = "82899510-4779-5014-852e-03e436cf321d"
 version = "1.0.0"
+
+[[deps.JLD2]]
+deps = ["FileIO", "MacroTools", "Mmap", "OrderedCollections", "PrecompileTools", "Reexport", "Requires", "TranscodingStreams", "UUIDs", "Unicode"]
+git-tree-sha1 = "67d4690d32c22e28818a434b293a374cc78473d3"
+uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+version = "0.4.51"
 
 [[deps.JLFzf]]
 deps = ["Pipe", "REPL", "Random", "fzf_jll"]

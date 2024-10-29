@@ -49,7 +49,7 @@ pomcpow_planner = solve(solver, pomdp)
 hr = HistoryRecorder(rng=rng, max_steps=pomdp.time_horizon)
 hist = simulate(hr, pomdp, pomcpow_planner, up, b);
 
-df = get_rewards(pomdp, hist);
+df = get_rewards(pomdp, phist);
 p = plot_results(pomdp, df);
-pall = plot(p.action, p.econ, p.other, layout=(3, 1), size=(1100, 800), margin=5mm);
+pall = plot(p.action, p.econ, p.other, layout=(3, 1), size=(1100, 800), margin=5mm)
 savefig(pall, "results.pdf")
