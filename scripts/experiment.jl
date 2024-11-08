@@ -6,6 +6,7 @@ using LiPOMDPs
 using MCTS
 # using DiscreteValueIteration
 using POMCPOW 
+# using BasicPOMCP
 using Distributions
 using Parameters
 using ARDESPOT
@@ -14,7 +15,8 @@ using ParticleFilters
 
 rng = MersenneTwister(1)
 
-pomdp = initialize_lipomdp() 
+# pomdp = initialize_lipomdp() 
+pomdp = LiPOMDP()
 
 # s = pomdp.init_state
 # s.m = [true, false, false, false]
@@ -33,7 +35,6 @@ policy = RandomPolicy(pomdp)
 
 # c = states(pomdp)
 # b
-println(fieldnames(typeof(initialstate(pomdp).val)))
 
 
 # sp, o, r = gen(pomdp, s, a, rng)
@@ -42,7 +43,7 @@ println(fieldnames(typeof(initialstate(pomdp).val)))
 
 random_planner = RandPolicy(pomdp)
 # # strong_planner = EfficiencyPolicy(pomdp, [true, true, true, true])
-robust_planner = EfficiencyPolicyWithUncertainty(pomdp, 1., [true, true, true, true])
+# robust_planner = EfficiencyPolicyWithUncertainty(pomdp, 1., [true, true, true, true])
 # # eco_planner = EmissionAwarePolicy(pomdp, [true, true, true, true])
 
 # # # #MCTS Solver -- uses mdp version of pomdp
@@ -93,8 +94,8 @@ hr = HistoryRecorder(max_steps=max_steps)
 println("reward $(typeof(random_planner)): $(round(discounted_reward(random_hist), digits=2))")
 
 
-@time robust_hist = simulate(hr, pomdp, robust_planner, up, b);
-println("reward $(typeof(robust_planner)): $(round(discounted_reward(robust_hist), digits=2))")
+# @time robust_hist = simulate(hr, pomdp, robust_planner, up, b);
+# println("reward $(typeof(robust_planner)): $(round(discounted_reward(robust_hist), digits=2))")
 
 @time phist = simulate(hr, pomdp, pomcpow_planner, up, b);
 println("reward POMCPOW Planner: $(round(discounted_reward(phist), digits=2))")
@@ -118,5 +119,3 @@ println("reward POMCPOW Planner: $(round(discounted_reward(phist), digits=2))")
 
 # o = rand(rng, prd)
 # pdf(prd, o)
-
-phist

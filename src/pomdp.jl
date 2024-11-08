@@ -1,10 +1,3 @@
-#=
-Original Authors: Yasmine Alonso, Mansur Arief, Anthony Corso, Jef Caers, and Mykel Kochenderfer
-Extended by: CJ Oshiro, Mansur Arief, Mykel Kochenderfer
-----------------
-=#
-
-
 function POMDPs.initialstate(P::LiPOMDP)
     return Deterministic(P.init_state)
 end
@@ -15,6 +8,7 @@ function POMDPs.actions(P::LiPOMDP)
     return potential_actions
 end
 
+#TODO: ensure we use this dispatch
 function POMDPs.actions(P::LiPOMDP, s::State)
     actions = [DONOTHING]
 
@@ -26,8 +20,6 @@ function POMDPs.actions(P::LiPOMDP, s::State)
             push!(actions, Symbol("RESTORE$i"))
         end
     end
-    
-
 end
 
 
@@ -44,13 +36,13 @@ function compute_r1(P::LiPOMDP, s::State, a::Action)
     return -penalty
 end
 
-function compute_r2(P::LiPOMDP, s::State, a::Action, o::Observation)
-    domestic = sum(o.E[j] for j in 1:P.n if j in P.Jd)
-    imported = sum(o.E[j] for j in 1:P.n if j in P.Ji)
+function compute_ore_arrived_at_plants(P::LiPOMDP, o::Observation)
+    domestic = sum(o.E[j] for j in P.Jd)
+    imported = sum(o.E[j] for j in P.Jf)
     return (domestic=domestic, imported=imported)
 end
 
-function compute_r3(P::LiPOMDP, s::State, a::Action)
+function compute_r2(P::LiPOMDP, s::State, a::Action)
     action_type = get_action_type(a)
     site_num = get_site_number(a)
 
@@ -71,45 +63,24 @@ function compute_r3(P::LiPOMDP, s::State, a::Action)
 
 end
 
-function compute_r4(P::LiPOMDP, s::State, a::Action, o::Observation)
+function compute_r3(P::LiPOMDP, s::State, a::Action, o::Observation)
     production = P.ρ * sum(o.E) + sum(o.Z)
     return -max(0, P.d[Int(s.t)] - production)
 end
 
-function compute_r5(P::LiPOMDP, s::State, a::Action, o::Observation)
-    E = o.E
-    Z = o.Z
-
-    production = P.ρ * sum(E) + sum(Z)
-
-    reward = 0
+function compute_r4(P::LiPOMDP, s::State, a::Action, o::Observation)
 
     action_type = get_action_type(a)
-    site_num = get_site_number(a)
+    r = 0.0
+    r += P.p * P.ρ * sum(compute_ore_arrived_at_plants(P, o)) #revenue
+    r -= (action_type == "EXPLORE" ? P.ce : 0) # exploration cost
+    r -= (action_type == "MINE" ? P.cb : 0) # building mining cost
+    r -= (action_type == "RESTORE" ? P.cr : 0) # restoration cost
+    r -= P.co*sum(s.m) # mining operating cost
+    r -= sum(P.ct[j] * (o.E[j] + o.Z[j]) for j in 1:P.n) # transportation cost #TODO: update the paper to reflect this
+    r -= P.cp*sum(compute_ore_arrived_at_plants(P, o)) # processing cost #TODO: update the paper to reflect this    
 
-    if action_type == "EXPLORE" #&& !s.m[site_num]
-        reward -= P.ce
-    end
-
-    if action_type == "MINE" #&& !s.m[site_num]
-        reward -= P.cb
-    end
-
-
-
-    reward -= P.co*sum(s.m) # mining operating cost
-
-
-    reward -= sum(P.ct[j] * E[j] for j in 1:P.n) # transportation cost #TODO: add into paper
-    reward -= sum(P.cp * Z[j] for j in 1:P.n) # processing cost #TODO: add into paper
-
-    if action_type == "RESTORE" #&& s.m[site_num]
-        reward -= P.cr
-    end
-
-    reward += P.p*production
-
-    return reward
+    return r
 end
 
 function POMDPs.reward(P::LiPOMDP, s::State, a::Action, o::Observation)
@@ -119,14 +90,12 @@ function POMDPs.reward(P::LiPOMDP, s::State, a::Action, o::Observation)
     end
     
     r1 = compute_r1(P, s, a)
-    r2 = sum(compute_r2(P, s, a, o)) #r2 output is a tuple(domestic, imported)
-    r3 = compute_r3(P, s, a)
+    r2 = compute_r2(P, s, a)
+    r3 = compute_r3(P, s, a, o)
     r4 = compute_r4(P, s, a, o)
-    r5 = compute_r5(P, s, a, o)
-    r = dot([r1, r2, r3, r4, r5], P.obj_weights)
+    r = dot([r1, r2, r3, r4], P.w)
 
-
-    return (r1=r1, r2=r2, r3=r3, r4=r4, r5=r5, r=r)
+    return (r1=r1, r2=r2, r3=r3, r4=r4, r=r)
 end
 
 
@@ -185,7 +154,7 @@ function POMDPs.transition(P::LiPOMDP, s::State, a::Action, rng)
 
         sp.Vₜ = s.Vₜ + ΔV
         sp.Iₜ = s.Iₜ + ΔI
-        L = [ j in P.Ji && sp.m[j] ? L[j] : 0.0 for j in 1:P.n]
+        L = [ j in P.Jf && sp.m[j] ? L[j] : 0.0 for j in 1:P.n]
     end
 
     Z = E .- L
@@ -202,7 +171,7 @@ function POMDPs.gen(P::LiPOMDP, s::State, a::Action, rng::AbstractRNG)
     o = Observation(v=v_pred, E=E, Z=Z)
 
     #compute reward
-    r1, r2, r3, r4, r5, r = reward(P, s, a, o)
+    r1, r2, r3, r4, r = reward(P, s, a, o)
 
     return (sp=sp, o=o, r=r)  
 end
@@ -231,7 +200,7 @@ function POMDPs.observation(P::LiPOMDP, a::Action, sp::State)
 
     if action_type == "EXPLORE" 
         site_dist = Normal(sp.v[site_number], P.σo)
-        quantile_vols = collect(0.:1000.:10000.) #TODO: put in the problem struct
+        quantile_vols = P.disc_points 
         chunk_boundaries = compute_chunk_boundaries(quantile_vols)
         probs = compute_chunk_probs(chunk_boundaries, site_dist)
         temp[site_number] = DiscreteNonParametric(quantile_vols, probs)
@@ -244,7 +213,7 @@ function POMDPs.observation(P::LiPOMDP, a::Action, sp::State)
             avg_output = mean(P.ϕ[site_number])
             std_output = std(P.ϕ[site_number])
             site_dist =  Normal(sp.v[site_number]-avg_output, std_output)
-            quantile_vols = collect(0.:1000.:10000.) #TODO: put in the problem struct
+            quantile_vols = P.disc_points 
             chunk_boundaries = compute_chunk_boundaries(quantile_vols)
             probs = compute_chunk_probs(chunk_boundaries, site_dist)
             temp[site_number] = DiscreteNonParametric(quantile_vols, probs)
