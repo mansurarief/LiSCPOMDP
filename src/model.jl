@@ -32,7 +32,7 @@ end
         Normal(100, 10), Normal(100, 10), 
         Normal(100, 10), Normal(100, 10)]         
     ψ::Vector{Distributions.Normal{Float64}}=[           # distribution of LCE lost during transport due to disruptions from each foreign deposit
-        Normal(0, 0.1), Normal(0, 0.1), 
+        Normal(0, 0.001), Normal(0, 0.001), 
         Normal(10, 5), Normal(10, 5)]         
     bin_edges::Vector{Float64}=[0.25, 0.5, 0.75] # Used to discretize observations
     cdf_threshold::Float64=0.1          # threshold allowing us to mine or not
@@ -42,7 +42,7 @@ end
     Δdeposit::Float64=10.0              # increment of deposit in the state space
     V_deposit_min::Float64=0.0          # min and max amount per singular deposit
     V_deposit_max::Float64=10.0         # min and max amount per singular deposit
-    w::Vector{Float64}=[0.25, 0.25, 0.25, 0.25] # how we want to weight each component of the reward 
+    w::Vector{Float64}=[0.1, 1.0, 0.1, 0.05] # how we want to weight each component of the reward 
     e::Vector{Float64}=[3, 4, 6, 7]     #[C₁, C₂, C₃, C₄] amount of CO2 each site emits
     v0::Vector{Float64}=[4100., 1800., 5500., 2500.] # initial volume of lithium in each mine
     null_state::State=State([-1, -1, -1, -1], -1, -1, -1, [true, true, true, true])
@@ -52,11 +52,11 @@ end
     ce::Float64=50.0                    # exploration cost
     cb::Float64=500.0                   # building mining cost
     cr::Float64=100.0                   # restoration cost
-    ct::Vector{Float64}=[0.0000001, 0.0000001, 0.005, 0.005] # transportation cost from each mine to the processing plant
+    ct::Vector{Float64}=[0.002, 0.002, 0.005, 0.005] # transportation cost from each mine to the processing plant
     cp::Float64=0.003                   # processing cost
-    co::Float64=5.0                     # fixed cost of operating a mine
-    p::Float64=0.03                     # price of lithium
-    ρ::Float64=0.7                      # extraction factor of lithium (% of lithium in the ore)
+    co::Float64=5.0                     # fixed cost of operating a mine #TODO: add co to paper
+    p::Float64=0.03                     # price of lithium #TODO: add p to paper
+    ρ::Float64=0.08                      # extraction factor of lithium (% of lithium in the ore)
     pd::Float64=100.0                   # domestic mining penalty, if done before t_goal
     rng::AbstractRNG=MersenneTwister(1) # random number generator
     disc_points::Vector{Float64}=collect(0.:1000.:10000.) # discretization points for observations

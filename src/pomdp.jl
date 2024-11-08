@@ -8,7 +8,7 @@ function POMDPs.actions(P::LiPOMDP)
     return potential_actions
 end
 
-#TODO: ensure we use this dispatch
+#TODO: ensure we use this dispatch. it is stil using the old way without state
 function POMDPs.actions(P::LiPOMDP, s::State)
     actions = [DONOTHING]
 
