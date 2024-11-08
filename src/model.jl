@@ -29,8 +29,8 @@ end
         520.0, 540.0, 560.0, 580.0, 600.0]              
     n::Int64=4                          # number of deposits
     ϕ::Vector{Distributions.Normal{Float64}}=[           # distribution of LCE in each deposit
-        Normal(100, 10), Normal(100, 10), 
-        Normal(100, 10), Normal(100, 10)]         
+        Normal(150, 10), Normal(150, 10), 
+        Normal(150, 10), Normal(150, 10)]         
     ψ::Vector{Distributions.Normal{Float64}}=[           # distribution of LCE lost during transport due to disruptions from each foreign deposit
         Normal(0, 0.001), Normal(0, 0.001), 
         Normal(10, 5), Normal(10, 5)]         
@@ -44,7 +44,7 @@ end
     V_deposit_max::Float64=10.0         # min and max amount per singular deposit
     w::Vector{Float64}=[0.1, 1.0, 0.1, 0.05] # how we want to weight each component of the reward 
     e::Vector{Float64}=[3, 4, 6, 7]     #[C₁, C₂, C₃, C₄] amount of CO2 each site emits
-    v0::Vector{Float64}=[4100., 1800., 5500., 2500.] # initial volume of lithium in each mine
+    v0::Vector{Float64}=[41000., 18000., 55000., 25000.] # initial volume of lithium in each mine
     null_state::State=State([-1, -1, -1, -1], -1, -1, -1, [true, true, true, true])
     init_state::State=State(v0, 1, 0.0, 0.0, [false, false, false, false])
     Jd::Vector{Int64}=[1, 2]            # mines that are domestic

@@ -14,7 +14,7 @@ struct RandPolicy <: Policy
 end
 
 function POMDPs.action(p::RandPolicy, b::LiBelief)
-    println(fieldnames(typeof(b)))
+    # println(fieldnames(typeof(b)))
     potential_actions = actions(p.pomdp, b)
     #println("random actions list: $potential_actions for $b")
     return rand(potential_actions)
@@ -156,3 +156,42 @@ function POMDPs.updater(policy::MCTS.DPWPlanner{GenerativeBeliefMDP{LiPOMDP, LiB
 end
 
 
+
+
+
+struct AusDomPolicy <: Policy
+    pomdp::LiPOMDP
+    t::Vector{Int}
+end
+
+function POMDPs.action(p::AusDomPolicy, b::LiBelief)
+    if b.t == p.t[1]
+        return MINE3
+    elseif b.t == p.t[2]
+        return MINE4
+    elseif b.t == p.t[3]
+        return MINE1
+    elseif b.t == p.t[4]
+        return MINE2
+    else
+        return DONOTHING
+    end
+end
+
+function POMDPs.action(p::AusDomPolicy, s::State)  # Changed from Deterministic{State}
+    if s.t == p.t[1]
+        return MINE3
+    elseif s.t == p.t[2]
+        return MINE4
+    elseif s.t == p.t[3]
+        return MINE1
+    elseif s.t == p.t[3]
+        return MINE2
+    else
+        return DONOTHING
+    end
+end
+
+function POMDPs.updater(policy::AusDomPolicy)
+    return LiBeliefUpdater(policy.pomdp)
+end

@@ -3,10 +3,10 @@ function POMDPs.initialstate(P::LiPOMDP)
 end
 
 
-function POMDPs.actions(P::LiPOMDP)
-    potential_actions = [DONOTHING MINE1 MINE2 MINE3 MINE4 EXPLORE1 EXPLORE2 EXPLORE3 EXPLORE4 RESTORE1 RESTORE2 RESTORE3 RESTORE4]
-    return potential_actions
-end
+# function POMDPs.actions(P::LiPOMDP)
+#     potential_actions = [DONOTHING MINE1 MINE2 MINE3 MINE4 EXPLORE1 EXPLORE2 EXPLORE3 EXPLORE4 RESTORE1 RESTORE2 RESTORE3 RESTORE4]
+#     return potential_actions
+# end
 
 #TODO: ensure we use this dispatch. it is stil using the old way without state
 function POMDPs.actions(P::LiPOMDP, s::State)
@@ -17,9 +17,46 @@ function POMDPs.actions(P::LiPOMDP, s::State)
             push!(actions, Symbol("MINE$i"))
             push!(actions, Symbol("EXPLORE$i"))
         else
-            push!(actions, Symbol("RESTORE$i"))
+            if s.v[i] < P.ΔV
+                push!(actions, Symbol("RESTORE$i"))
+            end
         end
     end
+end
+
+function POMDPs.actions(P::LiPOMDP, b::LiBelief)
+    actions = [DONOTHING]
+
+    for i in 1:P.n
+        if !b.m[i]            
+            if i == 1
+                push!(actions, MINE1)
+                push!(actions, EXPLORE1)
+            elseif i == 2
+                push!(actions, MINE2)
+                push!(actions, EXPLORE2)
+            elseif i == 3
+                push!(actions, MINE3)
+                push!(actions, EXPLORE3)
+            elseif i == 4
+                push!(actions, MINE4)
+                push!(actions, EXPLORE4)
+            end            
+        else
+            if mean(b.v_dists[i]) < P.ΔV
+                if i == 1
+                    push!(actions, RESTORE1)
+                elseif i == 2
+                    push!(actions, RESTORE2)
+                elseif i == 3
+                    push!(actions, RESTORE3)
+                elseif i == 4
+                    push!(actions, RESTORE4)
+                end
+            end
+        end
+    end
+    return actions
 end
 
 

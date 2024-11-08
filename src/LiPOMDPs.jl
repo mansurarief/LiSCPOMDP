@@ -39,17 +39,22 @@ export
     str_to_action,
     get_site_number,
     splice,
-    plot_results,
-    get_rewards,
     save_policy
 include("utils.jl")
+
+export 
+    plot_results,
+    get_rewards,
+    _get_rewards
+include("viz.jl")
 
 export
     #types
     RandPolicy,
     EfficiencyPolicy,
     EfficiencyPolicyWithUncertainty,
-    EmissionAwarePolicy
+    EmissionAwarePolicy,
+    AusDomPolicy
 include("policies.jl")
 
 export 

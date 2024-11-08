@@ -1,0 +1,52 @@
+using Random
+using POMDPs 
+using POMDPTools
+# using POMDPPolicies
+using LiPOMDPs
+using MCTS
+# using DiscreteValueIteration
+using POMCPOW 
+# using BasicPOMCP
+using Distributions
+using Parameters
+using ARDESPOT
+# using Iterators
+using ParticleFilters
+using Plots
+using Plots.PlotMeasures
+
+# include("../src/LiPOMDPs.jl")
+
+rng = MersenneTwister(1)
+pomdp = Main.LiPOMDPs.LiPOMDP(p=1.0, ρ=0.6, T=30, w=[0.1, 1.0, 0.1, 0.2])
+up = Main.LiPOMDPs.LiBeliefUpdater(pomdp)
+b = initialize_belief(up)
+policy = RandomPolicy(pomdp)
+heuristic_policy = AusDomPolicy(pomdp, [1, 2, 11, 12])
+# fieldnames(typeof(b))
+solver = POMCPOW.POMCPOWSolver(
+     tree_queries=1000, 
+     estimate_value = RolloutEstimator(RandomPolicy(pomdp)),
+     k_observation=2.0, 
+     alpha_observation=0.15, 
+     max_depth=30, 
+     enable_action_pw=false,
+     init_N=24  
+ ) 
+pomcpow_planner = solve(solver, pomdp)
+
+max_steps=25
+hr = HistoryRecorder(max_steps=max_steps)
+@time phist = simulate(hr, pomdp, pomcpow_planner, up, b);
+@time rhist = simulate(hr, pomdp, policy, up, b);
+@time hhist = simulate(hr, pomdp, heuristic_policy, up, b);
+
+# println("reward POMCPOW Planner: $(round(discounted_reward(phist), digits=2))")
+println("reward Random Planner: $(round(discounted_reward(rhist), digits=2))")
+println("reward Heuristic Planner: $(round(discounted_reward(hhist), digits=2))")
+
+
+df = Main.LiPOMDPs.get_rewards(pomdp, rhist);
+p = Main.LiPOMDPs.plot_results(pomdp, df);
+pall = plot(p.action, p.econ, p.other, layout=(3, 1), size=(1100, 800), margin=5mm)
+# savefig(pall, "results.pdf")
