@@ -393,3 +393,5 @@ end
 function save_policy(policy, filename)    
     return save(filename, "policy", policy)
 end
+
+extract_belief(up::LiBeliefUpdater, node::POWTreeObsNode{B,A,O}) where {B,A,O} = node.belief

@@ -39,11 +39,13 @@ export
     str_to_action,
     get_site_number,
     splice,
-    save_policy
+    save_policy,
+    extract_belief
 include("utils.jl")
 
 export 
     plot_results,
+    _plot_results,
     get_rewards,
     _get_rewards
 include("viz.jl")

@@ -9,20 +9,45 @@ end
 # end
 
 #TODO: ensure we use this dispatch. it is stil using the old way without state
-function POMDPs.actions(P::LiPOMDP, s::State)
+function POMDPs.actions(P::LiPOMDP, pc::ParticleCollection{State})
     actions = [DONOTHING]
 
+    #if no particles, return the default action
+    if isempty(pc.particles)
+        return actions
+    end
+    s = pc.particles[1]
     for i in 1:P.n
-        if !s.m[i]
-            push!(actions, Symbol("MINE$i"))
-            push!(actions, Symbol("EXPLORE$i"))
+        if !s.m[i]            
+            if i == 1
+                push!(actions, MINE1)
+                push!(actions, EXPLORE1)
+            elseif i == 2
+                push!(actions, MINE2)
+                push!(actions, EXPLORE2)
+            elseif i == 3
+                push!(actions, MINE3)
+                push!(actions, EXPLORE3)
+            elseif i == 4
+                push!(actions, MINE4)
+                push!(actions, EXPLORE4)
+            end            
         else
             if s.v[i] < P.ΔV
-                push!(actions, Symbol("RESTORE$i"))
+                if i == 1
+                    push!(actions, RESTORE1)
+                elseif i == 2
+                    push!(actions, RESTORE2)
+                elseif i == 3
+                    push!(actions, RESTORE3)
+                elseif i == 4
+                    push!(actions, RESTORE4)
+                end
             end
         end
     end
 end
+
 
 function POMDPs.actions(P::LiPOMDP, b::LiBelief)
     actions = [DONOTHING]
