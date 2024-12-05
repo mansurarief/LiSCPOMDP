@@ -157,8 +157,6 @@ end
 
 
 
-
-
 struct AusDomPolicy <: Policy
     pomdp::LiPOMDP
     t::Vector{Int}
@@ -193,5 +191,50 @@ function POMDPs.action(p::AusDomPolicy, s::State)  # Changed from Deterministic{
 end
 
 function POMDPs.updater(policy::AusDomPolicy)
+    return LiBeliefUpdater(policy.pomdp)
+end
+
+
+
+
+
+struct HeuristicPolicy <: Policy
+    pomdp::LiPOMDP
+    t_mine::Vector{Int}
+    t_restore::Vector{Int}
+    t_explore::Vector{Vector{Int}}
+end
+
+function POMDPs.action(p::HeuristicPolicy, b::LiBelief)
+    if b.t == p.t_mine[1]
+        return MINE1
+    elseif b.t == p.t_mine[2]
+        return MINE2
+    elseif b.t == p.t_mine[3]
+        return MINE3
+    elseif b.t == p.t_mine[4]
+        return MINE4
+    elseif b.t == p.t_restore[1]
+        return RESTORE1
+    elseif b.t == p.t_restore[2]
+        return RESTORE2
+    elseif b.t == p.t_restore[3]
+        return RESTORE3
+    elseif b.t == p.t_restore[4]
+        return RESTORE4
+    elseif b.t in p.t_explore[1]
+        return EXPLORE1
+    elseif b.t in p.t_explore[2]
+        return EXPLORE2
+    elseif b.t in p.t_explore[3]
+        return EXPLORE3
+    elseif b.t in p.t_explore[4]
+        return EXPLORE4
+    else
+        return DONOTHING        
+    end
+end
+
+function POMDPs.updater(policy::HeuristicPolicy)
     return LiBeliefUpdater(policy.pomdp)
 end

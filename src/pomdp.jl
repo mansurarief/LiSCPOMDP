@@ -121,7 +121,12 @@ function compute_r2(P::LiPOMDP, s::State, a::Action)
         end
     end
 
-    return new_emission + existing_emissions
+    absorption = 0 #one time absorption
+    if action_type == "RESTORE" 
+        absorption += P.a[site_num]
+    end
+
+    return new_emission + existing_emissions - absorption
 
 end
 
@@ -202,16 +207,18 @@ function POMDPs.transition(P::LiPOMDP, s::State, a::Action, rng)
 
         #process new mine        
         if action_type == "MINE"             
-            new_mine_output = min(s.v[site_number], E[site_number])
-            E[site_number] = new_mine_output
-            sp.v[site_number] = s.v[site_number] - E[site_number]            
+            # new_mine_output = min(s.v[site_number], E[site_number])
+            # E[site_number] = new_mine_output
+            # sp.v[site_number] = s.v[site_number] - E[site_number]            
             sp.m[site_number] = true
 
-            if get_site_number(a) in P.Jd
-                ΔV += E[site_number]
-            else
-                ΔI += E[site_number]
-            end
+            # if get_site_number(a) in P.Jd
+            #     ΔV += E[site_number]
+            # else
+            #     ΔI += E[site_number]
+            # end
+        elseif action_type == "RESTORE"
+            sp.m[site_number] = false
         end
 
         sp.Vₜ = s.Vₜ + ΔV

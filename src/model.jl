@@ -28,9 +28,11 @@ end
         420.0, 440.0, 460.0, 480.0, 500.0, 
         520.0, 540.0, 560.0, 580.0, 600.0]              
     n::Int64=4                          # number of deposits
-    ϕ::Vector{Distributions.Normal{Float64}}=[           # distribution of LCE in each deposit
-        Normal(150, 10), Normal(150, 10), 
-        Normal(150, 10), Normal(150, 10)]         
+    mine_rate::Vector{Float64}=[        # rate of mining in each deposit
+        150.0, 150.0, 200.0, 200.0]
+    ϕ::Vector{Distributions.Normal{Float64}}=[           
+        Normal(mine_rate[1], 10), Normal(mine_rate[2], 10), 
+        Normal(mine_rate[3], 10), Normal(mine_rate[4], 10)]         
     ψ::Vector{Distributions.Normal{Float64}}=[           # distribution of LCE lost during transport due to disruptions from each foreign deposit
         Normal(0, 0.001), Normal(0, 0.001), 
         Normal(10, 5), Normal(10, 5)]         
@@ -44,13 +46,14 @@ end
     V_deposit_max::Float64=10.0         # min and max amount per singular deposit
     w::Vector{Float64}=[0.1, 1.0, 0.1, 0.05] # how we want to weight each component of the reward 
     e::Vector{Float64}=[3, 4, 6, 7]     #[C₁, C₂, C₃, C₄] amount of CO2 each site emits
+    a::Vector{Float64}=[6, 8, 12, 14] #[A₁, A₂, A₃, A₄] amount CO2 absorbed by each site when restored
     v0::Vector{Float64}=[41000., 18000., 55000., 25000.] # initial volume of lithium in each mine
     null_state::State=State([-1, -1, -1, -1], -1, -1, -1, [true, true, true, true])
     init_state::State=State(v0, 1, 0.0, 0.0, [false, false, false, false])
     Jd::Vector{Int64}=[1, 2]            # mines that are domestic
     Jf::Vector{Int64}=[3, 4]            # mines that are foreign
     ce::Float64=50.0                    # exploration cost
-    cb::Float64=500.0                   # building mining cost
+    cb::Float64=400.0                   # building mining cost
     cr::Float64=100.0                   # restoration cost
     ct::Vector{Float64}=[0.002, 0.002, 0.005, 0.005] # transportation cost from each mine to the processing plant
     cp::Float64=0.003                   # processing cost
