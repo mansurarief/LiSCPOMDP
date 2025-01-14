@@ -1,6 +1,6 @@
 name = "LiPOMDPs"
 uuid = "bf783678-6688-403b-aee8-68acb78ee984"
-authors = ["CJ <cjoshiro04@gmail.com>"]
+authors = ["CJ <cjoshiro04@gmail.com>", "mansurarief <ariefm@stanford.edu>", "yalonso03 <yalonso@stanford.edu>"]
 version = "0.1.0"
 
 [deps]

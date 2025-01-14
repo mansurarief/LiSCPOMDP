@@ -64,18 +64,18 @@ policy = RandomPolicy(pomdp)
 # despot_planner = solve(despot_solver, pomdp)
 
 # # # POMCPOW Solver
-solver = POMCPOW.POMCPOWSolver(
-     tree_queries=1000, 
-     estimate_value = RolloutEstimator(RandomPolicy(pomdp)), #estimate_value,
-     k_observation=2.0, 
-     alpha_observation=0.2, 
-     max_depth=30, 
-     enable_action_pw=false,
-     init_N=25  
- ) # Estimate value should fix the previous problem with action functions
-pomcpow_planner = solve(solver, pomdp)
+# solver = POMCPOW.POMCPOWSolver(
+#      tree_queries=1000, 
+#      estimate_value = RolloutEstimator(RandomPolicy(pomdp)), #estimate_value,
+#      k_observation=2.0, 
+#      alpha_observation=0.2, 
+#      max_depth=30, 
+#      enable_action_pw=false,
+#      init_N=25  
+#  ) # Estimate value should fix the previous problem with action functions
+# pomcpow_planner = solve(solver, pomdp)
 
-n_reps=3
+# n_reps=3
 max_steps=30
 
 # planners = [random_planner, robust_planner, mcts_planner]
@@ -92,17 +92,17 @@ max_steps=30
 
 hr = HistoryRecorder(max_steps=max_steps)
 
-# @time random_hist = simulate(hr, pomdp, random_planner, up, b);
-# println("reward $(typeof(random_planner)): $(round(discounted_reward(random_hist), digits=2))")
+@time random_hist = simulate(hr, pomdp, random_planner, up, b);
+println("reward $(typeof(random_planner)): $(round(discounted_reward(random_hist), digits=2))")
 
 
 # @time robust_hist = simulate(hr, pomdp, robust_planner, up, b);
 # println("reward $(typeof(robust_planner)): $(round(discounted_reward(robust_hist), digits=2))")
 
-@time phist = simulate(hr, pomdp, pomcpow_planner, up, b);
-println("reward POMCPOW Planner: $(round(discounted_reward(phist), digits=2))")
+# @time phist = simulate(hr, pomdp, pomcpow_planner, up, b);
+# println("reward POMCPOW Planner: $(round(discounted_reward(phist), digits=2))")
 
-df = get_rewards(pomdp, phist);
+df = get_rewards(pomdp, random_hist);
 p = plot_results(pomdp, df);
 pall = plot(p.action, p.econ, p.other, layout=(3, 1), size=(1100, 800), margin=5mm)
 savefig(pall, "results.pdf")
