@@ -300,10 +300,10 @@ POMDPs.isterminal(P::LiPOMDP, s::State) = s == P.null_state || s.t > P.T
 function POMDPs.initialize_belief(up::LiBeliefUpdater)
 
     deposit_dists = [
-        Normal(up.P.init_state.v[1]),
-        Normal(up.P.init_state.v[2]),
-        Normal(up.P.init_state.v[3]),
-        Normal(up.P.init_state.v[4])
+        Normal(up.P.init_state.v[1], 2000),
+        Normal(up.P.init_state.v[2], 2000),
+        Normal(up.P.init_state.v[3], 2000),
+        Normal(up.P.init_state.v[4], 2000)
     ]
 
     

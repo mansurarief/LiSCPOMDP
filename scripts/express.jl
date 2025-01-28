@@ -94,29 +94,3 @@ println("reward H3 Planner: $(round(discounted_reward(h3hist), digits=2))")
 df = _get_rewards(pomdp, h3hist);
 p = _plot_results(pomdp, df)
 pall = plot(p.action, p.econ, p.other, layout=(3, 1), size=(1100, 800), margin=5mm)
-
-# savefig(pall, "data/importOnly_result.pdf")
-# # savefig(p.action, "data/pomcp_action.pdf")
-# # savefig(p.econ, "data/pomcp_econ.pdf")
-# # savefig(p.other, "data/pomcp_other.pdf")
-
-# # df.t_restore
-# #print the actions from HistoryRecorder
-
-
-# # scatter(
-# #         df.t_mine_off, df.mine_off,
-# #         label="MINE INACTIVE", 
-# #         markersize=10,
-# #         markerstrokewidth=2,        # Normal outline width
-# #         markerstrokecolor=:gainsboro,    # Gray outline
-# #         markercolor=RGBA(1,1,1,0),   # No fill
-# #         markershape=:circle,        # Circle shap
-# #     )
-
-# #print the new policy h3hist actions
-
-# println("h3hist actions")
-# for i in 1:length(h3hist)
-#     println(h3hist[i].a)
-# end

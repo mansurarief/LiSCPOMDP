@@ -17,7 +17,7 @@ end
 #TODO: check if a;l parameters are correct with the paper
 @with_kw mutable struct LiPOMDP <: POMDP{State, Action, Observation} 
     td::Int64=10                       # time goal, want to wait 10 years before mining domestically
-    σo::Float64=0.2                    # Standard deviation of the observation noise
+    σo::Float64=2000                    # Standard deviation of the observation noise
     γ::Float64=0.95                    # discounted reward
     T::Int64=30                        # time horizon
     d::Vector{Float64}=[               # demand for each time step
