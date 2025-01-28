@@ -2,7 +2,7 @@
 
 julia_version = "1.9.3"
 manifest_format = "2.0"
-project_hash = "24c6dc72ed92f6a8695e37de3530d52037eaaf59"
+project_hash = "2ed7ec5e29927b53550dd9e2bbfed67a7fe0e68e"
 
 [[deps.ARDESPOT]]
 deps = ["BasicPOMCP", "CPUTime", "D3Trees", "POMDPTools", "POMDPs", "Parameters", "ParticleFilters", "Printf", "Random"]
@@ -81,12 +81,6 @@ deps = ["CPUTime", "Colors", "D3Trees", "MCTS", "POMDPLinter", "POMDPTools", "PO
 git-tree-sha1 = "6bd8e6c1eb1c9fe993907c6eb1e9df02b8b23b04"
 uuid = "d721219e-3fc6-5570-a8ef-e5402f47c49e"
 version = "0.3.11"
-
-[[deps.BeliefUpdaters]]
-deps = ["POMDPModelTools", "POMDPs", "Random", "Statistics", "StatsBase"]
-git-tree-sha1 = "7d4f9d57116796ae3fc768d195386b0a42b4a58d"
-uuid = "8bb6e9a1-7d73-552c-a44a-e5dc5634aac4"
-version = "0.2.2"
 
 [[deps.BitFlags]]
 git-tree-sha1 = "0691e34b3bb8be9307330f88d1a3c3f25466c24d"
@@ -947,23 +941,11 @@ git-tree-sha1 = "cb2a591ec2418b81947ea23c098064c8b8bd3550"
 uuid = "f3bd98c0-eb40-45e2-9eb1-f2763262d755"
 version = "0.1.2"
 
-[[deps.POMDPModelTools]]
-deps = ["CommonRLInterface", "Distributions", "LinearAlgebra", "POMDPLinter", "POMDPs", "Random", "SparseArrays", "Statistics", "Tricks", "UnicodePlots"]
-git-tree-sha1 = "984ccff441993a2ff2d924c472e24f302a7b380b"
-uuid = "08074719-1b2a-587c-a292-00f91cc44415"
-version = "0.3.12"
-
 [[deps.POMDPModels]]
 deps = ["ColorSchemes", "Compose", "Distributions", "POMDPTools", "POMDPs", "Printf", "Random", "StaticArrays", "StatsBase"]
 git-tree-sha1 = "462c85335694b021de4d1bf208050d9089e0e461"
 uuid = "355abbd5-f08e-5560-ac9e-8b5f2592a0ca"
 version = "0.4.21"
-
-[[deps.POMDPPolicies]]
-deps = ["BeliefUpdaters", "Distributions", "LinearAlgebra", "POMDPModelTools", "POMDPs", "Parameters", "Random", "SparseArrays", "StatsBase"]
-git-tree-sha1 = "b9b6233a436aaa2829c3fd9dd6d51a9d2695cc30"
-uuid = "182e52fb-cfd0-5e46-8c26-fd0667c990f4"
-version = "0.4.2"
 
 [[deps.POMDPTools]]
 deps = ["CommonRLInterface", "DataFrames", "Distributed", "Distributions", "LinearAlgebra", "NamedTupleTools", "POMDPLinter", "POMDPs", "Parameters", "ProgressMeter", "Random", "Reexport", "SparseArrays", "Statistics", "StatsBase", "Tricks", "UnicodePlots"]

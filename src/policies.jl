@@ -139,19 +139,19 @@ function POMDPs.updater(policy::EmissionAwarePolicy)
     return LiBeliefUpdater(policy.pomdp)
 end
 
-function POMDPs.updater(policy::POMCPOWPlanner{LiPOMDP, POMCPOW.POWNodeFilter, MaxUCB, POMCPOW.RandomActionGenerator{Random._GLOBAL_RNG}, typeof(estimate_value), Int64, Float64, POMCPOWSolver{Random._GLOBAL_RNG, POMCPOW.var"#6#12"}})
+function POMDPs.updater(policy::POMCPOWPlanner{LiPOMDP, POMCPOW.POWNodeFilter, MaxUCB, typeof(estimate_value), Int64, Float64, POMCPOWSolver{Random.AbstractRNG, POMCPOW.var"#6#12"}})
     return LiBeliefUpdater(policy.problem)
 end
 
 function POMDPs.updater(policy::MCTS.DPWPlanner{GenerativeBeliefMDP{LiPOMDP, LiBeliefUpdater, LiBelief{Normal{Float64}}, Action}, 
                                            LiBelief{Normal{Float64}}, 
                                            Action, 
-                                           MCTS.SolvedRolloutEstimator{EfficiencyPolicyWithUncertainty, Random._GLOBAL_RNG}, 
-                                           RandomActionGenerator{Random._GLOBAL_RNG}, MCTS.var"#18#22", Random._GLOBAL_RNG})
+                                           MCTS.SolvedRolloutEstimator{EfficiencyPolicyWithUncertainty, Random.AbstractRNG}, 
+                                           RandomActionGenerator{Random.AbstractRNG}, MCTS.var"#18#22", Random.AbstractRNG})
     return LiBeliefUpdater(policy.solved_estimate.policy.pomdp)
 end
 
-function POMDPs.updater(policy::MCTS.DPWPlanner{GenerativeBeliefMDP{LiPOMDP, LiBeliefUpdater, ContinueTerminalBehavior{LiPOMDP, LiBeliefUpdater}, LiBelief{Normal{Float64}}, Action}, LiBelief{Normal{Float64}}, Action, MCTS.SolvedRolloutEstimator{EfficiencyPolicyWithUncertainty, Random._GLOBAL_RNG}, RandomActionGenerator{Random._GLOBAL_RNG}, MCTS.var"#18#22", Random._GLOBAL_RNG})
+function POMDPs.updater(policy::MCTS.DPWPlanner{GenerativeBeliefMDP{LiPOMDP, LiBeliefUpdater, ContinueTerminalBehavior{LiPOMDP, LiBeliefUpdater}, LiBelief{Normal{Float64}}, Action}, LiBelief{Normal{Float64}}, Action, MCTS.SolvedRolloutEstimator{EfficiencyPolicyWithUncertainty, Random.AbstractRNG}, RandomActionGenerator{Random.AbstractRNG}, MCTS.var"#18#22", Random.AbstractRNG})
     return LiBeliefUpdater(policy.solved_estimate.policy.pomdp)
  end 
 

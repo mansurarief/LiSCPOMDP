@@ -5,8 +5,6 @@ using POMDPs
 using POMCPOW
 using POMDPModels
 using POMDPTools
-using POMDPModelTools
-using POMDPPolicies
 using Serialization
 using Distributions
 using ParticleFilters
