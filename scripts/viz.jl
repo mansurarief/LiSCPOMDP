@@ -1,26 +1,33 @@
 include("express.jl")
-using Printf  # Add Printf import
+
+using Printf
+using Unitful
+using Revise
+
+# Define metric tonne unit
+@unit MT "MT" MetricTonne 1000u"kg" false
 
 df = _get_rewards(pomdp, hhist);
 p = _plot_results(pomdp, df);
 pall = plot(p.action, p.econ, p.other, layout=(3, 1), size=(1100, 800), margin=5mm)
 # savefig(pall, "results.pdf")
 
+
 """
-    plot_localized_timeline(hist, volume_ranges::Vector{Tuple{Float64,Float64}}, T::Int=10; 
+    plot_localized_timeline(hist::SimHistory, volume_ranges::Vector{Tuple{<:Quantity{<:Real,Unitful.𝐌},<:Quantity{<:Real,Unitful.𝐌}}}, T::Int=10; 
                           spacing::Float64=3.0, max_width::Float64=0.4)
 
 Create scatter plots showing the true lithium reserves and belief means for each deposit over time,
 using localized scales for better visualization.
 
 Arguments:
-- hist: Simulation history
-- volume_ranges: Vector of (min, max) tuples for each deposit's volume range
+- hist: Simulation history (values are in metric tonnes)
+- volume_ranges: Vector of (min, max) tuples for each deposit's volume range in metric tonnes
 - T: Maximum time steps to plot (default: 10)
 - spacing: Vertical spacing between deposits (default: 3.0)
 - max_width: Maximum width of the belief distribution plots (default: 0.4)
 """
-function plot_localized_timeline(hist, volume_ranges::Vector{Tuple{Float64,Float64}}, T::Int=10; 
+function plot_localized_timeline(hist::SimHistory, volume_ranges::Vector, T::Int=10; 
                                spacing::Float64=3.0, max_width::Float64=0.6, ms::Float64=2.0)
     @assert length(volume_ranges) == 4 "Must provide volume ranges for all 4 deposits"
     
@@ -48,16 +55,16 @@ function plot_localized_timeline(hist, volume_ranges::Vector{Tuple{Float64,Float
         local_min = center - band_height
         local_max = center + band_height
         
-        # Get true values for this deposit up to time T
-        true_values = [step.s.v[i] for step in hist][1:min(T, length(hist))]
+        # Get true values for this deposit up to time T (already in tonnes)
+        true_values = [step.s.v[i] * 1.0MT for step in hist][1:min(T, length(hist))]
         times = 1:length(true_values)
         
         # Get volume range for this deposit
         value_min, value_max = volume_ranges[i]
-        value_range = value_max - value_min
+        value_range = ustrip(value_max - value_min)
         
         # Scale true values to local range
-        scaled_true = local_min .+ (true_values .- value_min) ./ value_range * (2 * band_height)
+        scaled_true = local_min .+ (ustrip.(true_values .- value_min)) ./ value_range * (2 * band_height)
         
         # Plot true values
         scatter!(p_main, times, scaled_true,
@@ -71,15 +78,18 @@ function plot_localized_timeline(hist, volume_ranges::Vector{Tuple{Float64,Float
         for (t, step) in enumerate(hist[1:min(T, length(hist))])
             dist = step.b.v_dists[i]
             
+            # Scale the distribution (values already in tonnes)
+            scaled_dist = Normal(dist.μ, dist.σ)
+            
             # Generate points for PDF
-            y_points = range(value_min, value_max, length=100)
-            pdf_values = pdf.(dist, y_points)
+            y_points = range(ustrip(value_min), ustrip(value_max), length=100)
+            pdf_values = pdf.(scaled_dist, y_points)
             
             # Normalize PDF values to fit between time steps
             pdf_values = pdf_values ./ maximum(pdf_values) .* max_width
             
             # Scale y values to local range
-            y_scaled = local_min .+ (y_points .- value_min) ./ value_range * (2 * band_height)
+            y_scaled = local_min .+ (y_points .- ustrip(value_min)) ./ value_range * (2 * band_height)
             
             # Plot the PDF (only right side)
             x_values = fill(t, length(y_points)) .+ pdf_values
@@ -104,14 +114,14 @@ function plot_localized_timeline(hist, volume_ranges::Vector{Tuple{Float64,Float
         hline!(p_main, [local_min, local_max], color=:gray, alpha=0.2, label=nothing)
         
         # Format numbers with commas for thousands
-        min_text = format_number(value_min)
-        max_text = format_number(value_max)
+        function format_with_commas(x::Real)
+            return replace(string(round(Int, x)), r"(?<=[0-9])(?=(?:[0-9]{3})+(?![0-9]))" => ",")
+        end
         
-        # Left side annotations
-        annotate!(p_main, 0.7, local_min, text(min_text, :right, 7, :gray))
-        annotate!(p_main, 0.7, local_max, text(max_text, :right, 7, :gray))
+        min_text = string(format_with_commas(ustrip(value_min)), " MT")
+        max_text = string(format_with_commas(ustrip(value_max)), " MT")
         
-        # Right side annotations
+        # Right side annotations only (with units and commas)
         annotate!(p_main, T + 0.7, local_min, text(min_text, :left, 7, :gray))
         annotate!(p_main, T + 0.7, local_max, text(max_text, :left, 7, :gray))
     end
@@ -126,18 +136,12 @@ function plot_localized_timeline(hist, volume_ranges::Vector{Tuple{Float64,Float
     return p_main
 end
 
-"""
-Helper function to format numbers with commas for thousands
-"""
-function format_number(x::Real)
-    if x >= 1000
-        whole = floor(Int, x)
-        frac = x - whole
-        return string(replace(string(whole), r"(?<=[0-9])(?=(?:[0-9]{3})+(?![0-9]))" => ","), 
-                     frac == 0 ? "" : @sprintf("%.1f", frac)[2:end])
-    else
-        return @sprintf("%.1f", x)
-    end
-end
 
-p = plot_localized_timeline(hhist, [(0e4, 5e4), (0.0e4, 2.5e4), (4.4e4, 6.2e4), (0.5e4, 3.2e4)], 30, spacing=1.5)
+
+# Example usage with metric tonnes
+p = plot_localized_timeline(hhist, [
+    (0.0MT, 50_000.0MT),
+    (0.0MT, 25_000.0MT),
+    (44_000.0MT, 62_000.0MT),
+    (5_000.0MT, 32_000.0MT)
+], 30, spacing=1.5)
