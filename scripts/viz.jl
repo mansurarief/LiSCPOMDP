@@ -21,8 +21,8 @@ Arguments:
 - spacing: Vertical spacing between deposits (default: 3.0)
 - max_width: Maximum width of the belief distribution plots (default: 0.4)
 """
-function plot_localized_timeline(hist::SimHistory, volume_ranges::Vector, T::Int=10; 
-                               spacing::Float64=3.0, max_width::Float64=0.8, ms::Float64=2.0)
+function plot_localized_timeline(hist::Union{SimHistory, Vector}, volume_ranges::Vector, T::Int=10; 
+                               spacing::Float64=3.0, max_width::Float64=0.8, ms::Float64=2.0, title::String="Li Reserves Uncertainty vs. True Reserves Volume")
     @assert length(volume_ranges) == 4 "Must provide volume ranges for all 4 deposits"
     
     # Get theme colors
@@ -33,7 +33,7 @@ function plot_localized_timeline(hist::SimHistory, volume_ranges::Vector, T::Int
         size=(800, 800),
         xlabel="Time Period",
         # ylabel="Deposit",
-        title="Belief vs. True Reserves Volume",
+        title=title,
         grid=true,
         gridstyle=:dash,
         gridalpha=0.3,
@@ -239,17 +239,42 @@ end
 
 # Example usage with metric tonnes
 
-hist_ = h3hist;
+hist_ = hhist;
+#initate empy list
+#replace hist.b in each step with hist_[1].b
+hist_wo_bp = []
+for i in 1:length(hist_)
+    # Create new history step with initial belief
+    push!(hist_wo_bp, (
+        s = hist_[i].s,    # state
+        a = hist_[i].a,    # action
+        o = hist_[i].o,    # observation
+        r = hist_[i].r,    # reward
+        b = hist_[1].b,    # use initial belief
+        bp = hist_[1].b,   # use initial belief for next belief too
+        t = i              # timestep
+    ))
+end
 
+# hist_ = copy(hist_wo_bp);
 df = _get_rewards(pomdp, hist_);
 p = _plot_results(pomdp, df);
 pall = plot(p.action, p.econ, p.other, layout=(3, 1), size=(1100, 800), margin=5mm)
 # savefig(pall, "results.pdf")
 
-p = plot_localized_timeline(hist_, [
+p1 = plot_localized_timeline(hist_, [
     (20_000.0MT, 60_000.0MT),
     (5_000.0MT, 35_000.0MT),
     (42_000.0MT, 72_000.0MT),
     (10_000.0MT, 42_000.0MT)
 ], 30, spacing=1.0)
 
+p2 = plot_localized_timeline(hist_wo_bp, [
+    (20_000.0MT, 60_000.0MT),
+    (5_000.0MT, 35_000.0MT),
+    (42_000.0MT, 72_000.0MT),
+    (10_000.0MT, 42_000.0MT)
+], 30, spacing=1.0)
+
+pall = plot(p1, p2, layout=(1, 2), size=(1200, 600), margin=5mm)
+savefig(pall, "results.pdf")
