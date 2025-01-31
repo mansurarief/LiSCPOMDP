@@ -73,12 +73,6 @@ git-tree-sha1 = "6bd8e6c1eb1c9fe993907c6eb1e9df02b8b23b04"
 uuid = "d721219e-3fc6-5570-a8ef-e5402f47c49e"
 version = "0.3.11"
 
-[[deps.BeliefUpdaters]]
-deps = ["POMDPModelTools", "POMDPs", "Random", "Statistics", "StatsBase"]
-git-tree-sha1 = "7d4f9d57116796ae3fc768d195386b0a42b4a58d"
-uuid = "8bb6e9a1-7d73-552c-a44a-e5dc5634aac4"
-version = "0.2.2"
-
 [[deps.BenchmarkTools]]
 deps = ["JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
 git-tree-sha1 = "f1dff6729bc61f4d49e140da1af55dcd1ac97b2f"
@@ -978,12 +972,6 @@ deps = ["ColorSchemes", "Compose", "Distributions", "POMDPTools", "POMDPs", "Pri
 git-tree-sha1 = "462c85335694b021de4d1bf208050d9089e0e461"
 uuid = "355abbd5-f08e-5560-ac9e-8b5f2592a0ca"
 version = "0.4.21"
-
-[[deps.POMDPPolicies]]
-deps = ["BeliefUpdaters", "Distributions", "LinearAlgebra", "POMDPModelTools", "POMDPs", "Parameters", "Random", "SparseArrays", "StatsBase"]
-git-tree-sha1 = "b9b6233a436aaa2829c3fd9dd6d51a9d2695cc30"
-uuid = "182e52fb-cfd0-5e46-8c26-fd0667c990f4"
-version = "0.4.2"
 
 [[deps.POMDPTools]]
 deps = ["CommonRLInterface", "DataFrames", "Distributed", "Distributions", "LinearAlgebra", "NamedTupleTools", "POMDPLinter", "POMDPs", "Parameters", "ProgressMeter", "Random", "Reexport", "SparseArrays", "Statistics", "StatsBase", "Tricks", "UnicodePlots"]
