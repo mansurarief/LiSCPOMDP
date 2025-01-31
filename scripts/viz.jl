@@ -7,12 +7,6 @@ using Revise
 # Define metric tonne unit
 @unit MT "MT" MetricTonne 1000u"kg" false
 
-df = _get_rewards(pomdp, hhist);
-p = _plot_results(pomdp, df);
-pall = plot(p.action, p.econ, p.other, layout=(3, 1), size=(1100, 800), margin=5mm)
-# savefig(pall, "results.pdf")
-
-
 """
     plot_localized_timeline(hist::SimHistory, volume_ranges::Vector{Tuple{<:Quantity{<:Real,Unitful.𝐌},<:Quantity{<:Real,Unitful.𝐌}}}, T::Int=10; 
                           spacing::Float64=3.0, max_width::Float64=0.4)
@@ -28,21 +22,42 @@ Arguments:
 - max_width: Maximum width of the belief distribution plots (default: 0.4)
 """
 function plot_localized_timeline(hist::SimHistory, volume_ranges::Vector, T::Int=10; 
-                               spacing::Float64=3.0, max_width::Float64=0.6, ms::Float64=2.0)
+                               spacing::Float64=3.0, max_width::Float64=0.8, ms::Float64=2.0)
     @assert length(volume_ranges) == 4 "Must provide volume ranges for all 4 deposits"
+    
+    # Get theme colors
+    cols = theme_palette(:auto)
     
     # Main plot
     p_main = plot(
-        size=(1000, 800),
+        size=(800, 800),
         xlabel="Time Period",
-        ylabel="Deposit",
-        title="Lithium Reserves Over Time (Localized Scales)",
+        # ylabel="Deposit",
+        title="Belief vs. True Reserves Volume",
         grid=true,
         gridstyle=:dash,
         gridalpha=0.3,
-        legend=false,  # No built-in legend
-        right_margin=40mm
+        legend=:outerbottom,  
+        legend_columns=2,  # Arrange legend in 3 columns
+        right_margin=20mm,
+        left_margin=5mm,  # Reduced left margin
+        top_margin=5mm,   # Increased top margin
+        bottom_margin=0mm,  # Reduced bottom margin
+        guidefontsize=12,  # Axis label font size
+        tickfontsize=11,   # Tick label font size
+        titlefontsize=14,  # Title font size
+        legendfontsize=10, # Legend font size
+        background_color_legend=nothing  # Remove legend background
     )
+
+
+
+    scatter!([], [], label="EXPLORE", markercolor=cols[1], markerstrokecolor=:black, markershape=:circle, markersize=6)
+    scatter!([], [], label="Mine Operating", markercolor=cols[4], markerstrokecolor=:black, markershape=:circle, markersize=6)
+    scatter!([], [], label="MINE", markercolor=cols[2], markerstrokecolor=:black, markershape=:circle, markersize=6)
+    scatter!([], [], label="Mine Not Operating", markercolor=RGBA(1,1,1,0), markerstrokecolor=:lightgrey, markershape=:circle, markersize=6, linestyle=:dash)
+    scatter!([], [], label="RESTORE", markercolor=cols[3], markerstrokecolor=:black, markershape=:circle, markersize=6)
+    scatter!([], [], label="True Reserves Volume", color=:black, markershape=:circle, markersize=ms)
 
     # Colors for different deposits
     deposit_colors = [:blue, :red, :green, :purple]
@@ -122,8 +137,92 @@ function plot_localized_timeline(hist::SimHistory, volume_ranges::Vector, T::Int
         max_text = string(format_with_commas(ustrip(value_max)), " MT")
         
         # Right side annotations only (with units and commas)
-        annotate!(p_main, T + 0.7, local_min, text(min_text, :left, 7, :gray))
-        annotate!(p_main, T + 0.7, local_max, text(max_text, :left, 7, :gray))
+        annotate!(p_main, T + 0.7, local_min, text(min_text, :left, 9, :gray))  # Increased font size
+        annotate!(p_main, T + 0.7, local_max, text(max_text, :left, 9, :gray))  # Increased font size
+        
+        # Plot operating status and action circles
+        circle_y = local_max + 0.08  # Position near the top of the band
+        for (t, step) in enumerate(hist[1:min(T, length(hist))])
+            # Get action for this step
+            action = step.a
+            action_type = get_action_type(action)
+            site_number = get_site_number(action)
+            
+            if site_number == i  # Action targets this deposit
+                if action_type == "EXPLORE"
+                    # Explore action - blue fill
+                    scatter!(p_main, [t], [circle_y],
+                        markersize=6,
+                        markerstrokewidth=1,
+                        markerstrokecolor=:black,
+                        markercolor=cols[1],  # Blue from theme
+                        markershape=:circle,
+                        label=nothing)
+                elseif action_type == "MINE"
+                    # Mine action - orange fill
+                    scatter!(p_main, [t], [circle_y],
+                        markersize=6,
+                        markerstrokewidth=1,
+                        markerstrokecolor=:black,
+                        markercolor=cols[2],  # Orange from theme
+                        markershape=:circle,
+                        label=nothing)
+                elseif action_type == "RESTORE"
+                    # Restore action - purple fill
+                    scatter!(p_main, [t], [circle_y],
+                        markersize=6,
+                        markerstrokewidth=1,
+                        markerstrokecolor=:black,
+                        markercolor=cols[3],  # Purple from theme
+                        markershape=:circle,
+                        label=nothing)
+                else
+                    # No action - show operating status
+                    if step.s.m[i]  # Using state's mining status
+                        # Active mine - solid black outline, colored fill
+                        scatter!(p_main, [t], [circle_y],
+                            markersize=6,
+                            markerstrokewidth=1,
+                            markerstrokecolor=:black,
+                            markercolor=cols[4],  # Green from theme
+                            markershape=:circle,
+                            label=nothing)
+                    else
+                        # Inactive mine - dashed gray outline, transparent fill
+                        scatter!(p_main, [t], [circle_y],
+                            markersize=6,
+                            markerstrokewidth=1,
+                            markerstrokecolor=:lightgrey,
+                            markercolor=RGBA(1,1,1,0),
+                            markershape=:circle,
+                            linestyle=:dash,
+                            label=nothing)
+                    end
+                end
+            else
+                # No action for this deposit - show operating status
+                if step.s.m[i]  # Using state's mining status
+                    # Active mine - solid black outline, colored fill
+                    scatter!(p_main, [t], [circle_y],
+                        markersize=6,
+                        markerstrokewidth=1,
+                        markerstrokecolor=:black,
+                        markercolor=cols[4],  # Green from theme
+                        markershape=:circle,
+                        label=nothing)
+                else
+                    # Inactive mine - dashed gray outline, transparent fill
+                    scatter!(p_main, [t], [circle_y],
+                        markersize=6,
+                        markerstrokewidth=1,
+                        markerstrokecolor=:lightgrey,
+                        markercolor=RGBA(1,1,1,0),
+                        markershape=:circle,
+                        linestyle=:dash,
+                        label=nothing)
+                end
+            end
+        end
     end
     
     # Adjust plot limits
@@ -139,9 +238,18 @@ end
 
 
 # Example usage with metric tonnes
-p = plot_localized_timeline(hhist, [
-    (0.0MT, 50_000.0MT),
-    (0.0MT, 25_000.0MT),
-    (44_000.0MT, 62_000.0MT),
-    (5_000.0MT, 32_000.0MT)
-], 30, spacing=1.5)
+
+hist_ = h3hist;
+
+df = _get_rewards(pomdp, hist_);
+p = _plot_results(pomdp, df);
+pall = plot(p.action, p.econ, p.other, layout=(3, 1), size=(1100, 800), margin=5mm)
+# savefig(pall, "results.pdf")
+
+p = plot_localized_timeline(hist_, [
+    (20_000.0MT, 60_000.0MT),
+    (5_000.0MT, 35_000.0MT),
+    (42_000.0MT, 72_000.0MT),
+    (10_000.0MT, 42_000.0MT)
+], 30, spacing=1.0)
+

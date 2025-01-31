@@ -206,9 +206,15 @@ function get_action_type(a::Action)
     end
 
     action_str = string(a)
-    len = length(action_str)
-    action_type = splice(1, len - 1, action_str)
-    return action_type
+    if startswith(action_str, "MINE")
+        return "MINE"
+    elseif startswith(action_str, "EXPLORE")
+        return "EXPLORE"
+    elseif startswith(action_str, "RESTORE")
+        return "RESTORE"
+    else
+        error("Unknown action type: $action_str")
+    end
 end
 
 # Hardcoded function to convert a string to an action
@@ -381,14 +387,71 @@ function random_initial_belief(s::State, rng::AbstractRNG=Random.default_rng())
     return LiBelief(deposit_dists, t, V_tot, I_tot, m)
 end
 
-# kalman_step is used in the belief updater update function
+# Regular Kalman filter step
 function kalman_step(σo, μ::Float64, σ::Float64, z::Float64)
     k = σ / (σ + σo)  # Kalman gain
     μ_prime = μ + k * (z - μ)  # Estimate new mean
-    σ_prime = (1 - k) * σ   # Estimate new uncertainty
+    σ_prime = (σ * σo) / (σ + σo)
     return μ_prime, σ_prime
 end
 
+# Unscented Kalman filter step
+function ukf_step(μ::Float64, σ::Float64, z::Float64, σo::Float64,  mine_rate::Float64, α::Float64, β::Float64, κ::Float64)
+    n = 1  # State dimension
+    λ = α^2 * (n + κ) - n
+    
+    # 1. Generate sigma points
+    χ = zeros(2n + 1)
+    χ[1] = μ
+    scaling = sqrt((n + λ) * σ^2)
+    χ[2] = μ + scaling
+    χ[3] = μ - scaling
+    
+    # 2. Calculate weights
+    Wm = zeros(2n + 1)
+    Wc = zeros(2n + 1)
+    Wm[1] = λ/(n + λ)
+    Wc[1] = Wm[1] + (1 - α^2 + β)
+    for i in 2:(2n + 1)
+        Wm[i] = 1/(2(n + λ))
+        Wc[i] = Wm[i]
+    end
+    
+    # 3. Propagate sigma points through nonlinear dynamics
+    # Here we apply the mining dynamics: max(0, min(x, mine_rate))
+    χ_prop = [max(0, min(x, mine_rate)) for x in χ]
+    χ_remaining = [max(0, x - χ_prop[i]) for (i,x) in enumerate(χ)]
+    
+    # 4. Compute predicted mean and covariance
+    μ_pred = sum(Wm[i] * χ_remaining[i] for i in 1:(2n + 1))
+    σ_pred = sum(Wc[i] * (χ_remaining[i] - μ_pred)^2 for i in 1:(2n + 1))
+    
+    # 5. Measurement update
+    # Innovation
+    y = z - μ_pred
+    
+    # Kalman gain (using predicted covariance and measurement noise)
+    K = σ_pred / (σ_pred + σo)
+    
+    # Update state estimate
+    μ_new = μ_pred + K * y
+    σ_new = (1 - K) * σ_pred
+    
+    # Ensure non-negativity of mean and variance
+    μ_new = max(0, μ_new)
+    σ_new = max(1e-6, σ_new)
+    
+    return μ_new, σ_new
+end
+
+# Combined filter step that chooses between regular KF and UKF
+function filter_step(P::LiPOMDP, μ::Float64, σ::Float64, z::Float64, mine_rate::Float64)
+    if P.use_ukf
+        return ukf_step(μ, σ, z, P.σo, mine_rate, P.ukf_α, P.ukf_β, P.ukf_κ)
+    else
+        return kalman_step(P.σo, μ, σ, z)
+    end
+end
 
 function save_policy(policy, filename)    
     return save(filename, "policy", policy)

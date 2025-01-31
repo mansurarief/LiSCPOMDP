@@ -25,6 +25,8 @@ pomdp = LiPOMDP(
     T=31, w=[0.1, 3.2, 0.1, 0.2], 
     a=[-20, -20, -20, -30], 
     mine_rate=[300, 300, 100, 100])
+
+
 up = LiBeliefUpdater(pomdp)
 b = initialize_belief(up)
 policy = RandomPolicy(pomdp)
@@ -70,13 +72,13 @@ pomcp_planner = solve(pomcp_solver, pomdp)
 max_steps=30
 hr = HistoryRecorder(max_steps=max_steps)
 # @time phist = simulate(hr, pomdp, pomcpow_planner, up, b0);
-@time rhist = simulate(hr, pomdp, policy, up, b);
-@time hhist = simulate(hr, pomdp, heuristic_policy, up, b);
-@time h0hist = simulate(hr, pomdp, h0_policy, up, b);
-@time h1hist = simulate(hr, pomdp, h1_policy, up, b);
-@time h2hist = simulate(hr, pomdp, h2_policy, up, b);
-@time h3hist = simulate(hr, pomdp, importOnly_policy, up, b);
-@time h3hist = simulate(hr, pomdp, h3_policy, up, b);
+@time rhist = simulate(hr, pomdp, policy, up, initialize_belief(up));
+@time hhist = simulate(hr, pomdp, heuristic_policy, up, initialize_belief(up));
+@time h0hist = simulate(hr, pomdp, h0_policy, up, initialize_belief(up));
+@time h1hist = simulate(hr, pomdp, h1_policy, up, initialize_belief(up));
+@time h2hist = simulate(hr, pomdp, h2_policy, up, initialize_belief(up));
+@time h3hist = simulate(hr, pomdp, h3_policy, up, initialize_belief(up));
+@time ihist = simulate(hr, pomdp, importOnly_policy, up, initialize_belief(up));
 
 
 
@@ -87,10 +89,10 @@ println("reward H0 Planner: $(round(discounted_reward(h0hist), digits=2))")
 println("reward H1 Planner: $(round(discounted_reward(h1hist), digits=2))")
 println("reward H2 Planner: $(round(discounted_reward(h2hist), digits=2))")
 println("reward H3 Planner: $(round(discounted_reward(h3hist), digits=2))")
+println("reward Import Only Planner: $(round(discounted_reward(ihist), digits=2))")
 
 
 
-
-df = _get_rewards(pomdp, h3hist);
-p = _plot_results(pomdp, df)
-pall = plot(p.action, p.econ, p.other, layout=(3, 1), size=(1100, 800), margin=5mm)
+# df = _get_rewards(pomdp, h3hist);
+# p = _plot_results(pomdp, df)
+# pall = plot(p.action, p.econ, p.other, layout=(3, 1), size=(1100, 800), margin=5mm)

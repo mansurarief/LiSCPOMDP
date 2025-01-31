@@ -175,8 +175,8 @@ function POMDPs.transition(P::LiPOMDP, s::State, a::Action, rng)
     else
         # pre-generate the LCE extracted at each site
         # state transition randomization is mainly due to these two lines
-        E = [rand(rng, ϕ) for ϕ in P.ϕ] 
-        L = [rand(rng, ψ) for ψ in P.ψ] 
+        E = [max(0, rand(rng, ϕ)) for ϕ in P.ϕ] 
+        L = [max(0, rand(rng, ψ)) for ψ in P.ψ] 
 
         sp = deepcopy(s) 
         sp.t = s.t + 1  
@@ -185,7 +185,6 @@ function POMDPs.transition(P::LiPOMDP, s::State, a::Action, rng)
         ΔI = 0.0
         new_mine_output = 0.0
 
-        #process new mine
         action_type = get_action_type(a)
         site_number = get_site_number(a)     
 
@@ -207,16 +206,7 @@ function POMDPs.transition(P::LiPOMDP, s::State, a::Action, rng)
 
         #process new mine        
         if action_type == "MINE"             
-            # new_mine_output = min(s.v[site_number], E[site_number])
-            # E[site_number] = new_mine_output
-            # sp.v[site_number] = s.v[site_number] - E[site_number]            
             sp.m[site_number] = true
-
-            # if get_site_number(a) in P.Jd
-            #     ΔV += E[site_number]
-            # else
-            #     ΔI += E[site_number]
-            # end
         elseif action_type == "RESTORE"
             sp.m[site_number] = false
         end
@@ -226,7 +216,7 @@ function POMDPs.transition(P::LiPOMDP, s::State, a::Action, rng)
         L = [ j in P.Jf && sp.m[j] ? L[j] : 0.0 for j in 1:P.n]
     end
 
-    Z = E .- L
+    Z = [max(0, E[j] - L[j]) for j in 1:P.n] #truncate negative values
 
     return (sp=sp, E=E, L=L, Z=Z)
 end
@@ -254,38 +244,14 @@ function POMDPs.observation(P::LiPOMDP, a::Action, sp::State)
     sentinel_dist = DiscreteNonParametric([-1.], [1.])
     temp::Vector{UnivariateDistribution} = fill(sentinel_dist, P.n)
 
-    # handle do nothing action
-    if site_number <= 0
-        return product_distribution(temp)        
-    end
-
-    # handle degenerate case where we have no more Li at this site    
-    
-    if sp.v[site_number] <= 0
-        site_dist = sentinel_dist
-        return product_distribution(temp)        
-    end
-    
-
-    if action_type == "EXPLORE" 
-        site_dist = Normal(sp.v[site_number], P.σo)
-        quantile_vols = P.disc_points 
-        chunk_boundaries = compute_chunk_boundaries(quantile_vols)
-        probs = compute_chunk_probs(chunk_boundaries, site_dist)
-        temp[site_number] = DiscreteNonParametric(quantile_vols, probs)
-        # return product_distribution(temp)
-    end
-
-    #process the opened mine
+    # First generate observations for all operating mines
     for j in 1:P.n
-        if sp.m[j] && j != site_number
-            avg_output = mean(P.ϕ[site_number])
-            std_output = std(P.ϕ[site_number])
-            site_dist =  Normal(sp.v[site_number]-avg_output, std_output)
+        if sp.m[j] || (action_type == "EXPLORE" && !sp.m[site_number])
+            site_dist = Normal(sp.v[j], P.σo)
             quantile_vols = P.disc_points 
             chunk_boundaries = compute_chunk_boundaries(quantile_vols)
             probs = compute_chunk_probs(chunk_boundaries, site_dist)
-            temp[site_number] = DiscreteNonParametric(quantile_vols, probs)
+            temp[j] = DiscreteNonParametric(quantile_vols, probs)
         end
     end
     
@@ -300,10 +266,10 @@ POMDPs.isterminal(P::LiPOMDP, s::State) = s == P.null_state || s.t > P.T
 function POMDPs.initialize_belief(up::LiBeliefUpdater)
 
     deposit_dists = [
-        Normal(up.P.init_state.v[1], 2000),
-        Normal(up.P.init_state.v[2], 2000),
-        Normal(up.P.init_state.v[3], 2000),
-        Normal(up.P.init_state.v[4], 2000)
+        Normal(up.P.init_state.v[1], up.P.σo),
+        Normal(up.P.init_state.v[2], up.P.σo),
+        Normal(up.P.init_state.v[3], up.P.σo),
+        Normal(up.P.init_state.v[4], up.P.σo)
     ]
 
     
@@ -314,30 +280,23 @@ end
 
 function POMDPs.update(up::Updater, b::LiBelief, a::Action, o::Observation)
     
-    # println("Observation: $o, Belief: $b, Action: $a")
-    
     action_type = get_action_type(a)
     site_number = get_site_number(a)
     P = up.P
     ΔV = 0.0
     ΔI = 0.0
 
-    v_dists= [b.v_dists[1], b.v_dists[2], b.v_dists[3], b.v_dists[4]]
+    v_dists = [b.v_dists[i] for i in 1:P.n]
 
     for j in 1:P.n
         if o.v[j] != -1
-            bi = b.v_dists[site_number]  # This is a normal distribution
+            bi = b.v_dists[j]  # This is a normal distribution
             μi = mean(bi)
             σi = std(bi)
-            zi = o.v[site_number]
-            if j == site_number && action_type == "EXPLORE" 
-                σo = P.σo   #use observation noise   
-            else
-                σo = std(P.ϕ[j]) #use extraction noise
-            end
-            μ_prime, σ_prime = kalman_step(σo, μi, σi, zi)
-            bi_prime = Normal(μ_prime, σ_prime)
-            v_dists[site_number] = bi_prime
+            
+            zi = o.v[j]
+            μ_prime, σ_prime = filter_step(P, μi, σi, zi, P.mine_rate[j])
+            v_dists[j] = Normal(μ_prime, σ_prime)
         end
 
         if j in P.Jd
@@ -347,21 +306,14 @@ function POMDPs.update(up::Updater, b::LiBelief, a::Action, o::Observation)
         end
     end
 
+    # Create a new copy of the mining status vector
+    m = copy(b.m)
     
-    if site_number > 0
-        if site_number in P.Jd
-            ΔV += o.E[site_number]
-        else
-            ΔI += o.E[site_number]
-        end
-    end
-
-    
+    # Update mining status for MINE and RESTORE actions
     if action_type == "MINE"
-        m = [false, false, false, false]
         m[site_number] = true
-    else
-        m = b.m
+    elseif action_type == "RESTORE"
+        m[site_number] = false  # Set mining status to false when restored
     end
 
     bp = LiBelief(
