@@ -1,0 +1,17 @@
+{
+	"name": "LiPOMDPs",
+	"image": "ghcr.io/julia-vscode/julia-devcontainer",
+
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"julialang.language-julia",
+				"mathematic.vscode-pdf",
+				"Gruntfuggly.todo-tree"
+			],
+			"settings": {
+				"todo-tree.regex.regex": "(//|#|<!--|;|/\\*|^|^[ \\t]*(-|\\d+.)|%[ \\t]*)\\s*($TAGS)",
+			}
+		}
+	}
+}

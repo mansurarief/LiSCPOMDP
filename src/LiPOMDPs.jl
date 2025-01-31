@@ -17,6 +17,9 @@ using Statistics
 using D3Trees
 using MCTS
 using Plots.PlotMeasures
+using JLD2
+using JuMP
+using GLPK
  
 export 
     LiPOMDP, 
@@ -44,13 +47,36 @@ export
     get_action_emission
 include("utils.jl")
 
+export 
+    plot_results,
+    _plot_results,
+    get_rewards,
+    _get_rewards
+include("viz.jl")
+
 export
     #types
     RandPolicy,
     EfficiencyPolicy,
     EfficiencyPolicyWithUncertainty,
-    EmissionAwarePolicy
+    EmissionAwarePolicy,
+    AusDomPolicy,
+    HeuristicPolicy
 include("policies.jl")
+
+export 
+    #Functions
+    create_lithium_mining_model,
+    print_optimization_results,
+    format_optimization_results,
+    solve_lithium_mining_model
+include("MILP_no_exploration.jl")
+
+export 
+    OptimizationPolicy,
+    create_optimization_policy,
+    optimization_to_pomdp_action
+include("policies_MILP.jl")
 
 export 
     #Functions

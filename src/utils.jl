@@ -174,19 +174,20 @@ function get_action_emission(P, a)
     action_number = get_site_number(a)
     
     # Subtract carbon emissions (if relevant)
-    r3 = (action_type == "MINE") ? P.CO2_emissions[action_number] * -1 : 0
+    r3 = (action_type == "MINE") ? P.e[action_number] * -1 : 0
     return r3
 end
 
 # Inputs an action, outputs the site number of that action
 function get_site_number(a::Action)
-    a = a.a
-    len = length(a)
-    if (a[1:4] == "MINE")
-        return parse(Int64, a[5:len])
-    else
-        return parse(Int64, a[8:len])
+    if a == DONOTHING
+        return 0
     end
+    
+    action_str = string(a)
+    len = length(action_str)
+    deposit_number = Int(action_str[len]) - 48  # -48 because Int() gives me the ascii code
+    return deposit_number
 end
 
 # I'm sure there's some builtin for this but I couldn't find it lol. Splices a string
@@ -200,10 +201,32 @@ end
 
 # Inputs an action, outputs either MINE or EXPLORE as a string
 function get_action_type(a::Action)
-    a = a.a
-    len = length(a)
-    if (a[1:4] == "MINE")
-        return "MINE"
+    if a == DONOTHING
+        return "DONOTHING"
+    end
+
+    action_str = string(a)
+    len = length(action_str)
+    action_type = splice(1, len - 1, action_str)
+    return action_type
+end
+
+# Hardcoded function to convert a string to an action
+function str_to_action(s::String)
+    if s == "MINE1"
+        return MINE1
+    elseif s == "MINE2"
+        return MINE2
+    elseif s == "MINE3"
+        return MINE3
+    elseif s == "MINE4"
+        return MINE4
+    elseif s == "EXPLORE1"
+        return EXPLORE1
+    elseif s == "EXPLORE2"
+        return EXPLORE2
+    elseif s == "EXPLORE3"
+        return EXPLORE3
     else
         return "EXPLORE"
     end
@@ -222,7 +245,7 @@ function can_explore_here(a::Action, b::Any)
         b = convert_particle_collection_to_libelief(b)
     end
     
-    return !b.have_mined[site_number]        
+    return !b.m[site_number]        
 end
 
 
@@ -294,8 +317,8 @@ function convert_particle_collection_to_libelief(part_collection::POMCPOW.StateB
     #@assert(all([state.t == states_vec[1].t for state in states_vec]))
     
     
-    # Create a new LiBelief with the mean, std of each Deposit, take the other fields (t, V_tot, have_mined) from the first particle
-    return LiBelief([Normal(μ1, σ1), Normal(μ2, σ2), Normal(μ3, σ3), Normal(μ4, σ4)], states_vec[1].t, states_vec[1].Vₜ, states_vec[1].Iₜ, [mine for mine in states_vec[1].have_mined])
+    # Create a new LiBelief with the mean, std of each Deposit, take the other fields (t, V_tot, m) from the first particle
+    return LiBelief([Normal(μ1, σ1), Normal(μ2, σ2), Normal(μ3, σ3), Normal(μ4, σ4)], states_vec[1].t, states_vec[1].Vₜ, states_vec[1].Iₜ, [mine for mine in states_vec[1].m])
 end
 
 #Base functions ########################
@@ -317,21 +340,21 @@ end
 
 # Make a copy of the state
 function Base.deepcopy(s::State)
-    return State(deepcopy(s.deposits), s.t, s.Vₜ, s.Iₜ, deepcopy(s.have_mined))  # don't have to copy t and Vₜ cuz theyre immutable i think
+    return State(deepcopy(s.v), s.t, s.Vₜ, s.Iₜ, deepcopy(s.m))  # don't have to copy t and Vₜ cuz theyre immutable i think
 end
 
 # Input a belief and randomly produce a state from it 
 function Base.rand(rng::AbstractRNG, b::LiBelief)
-    deposit_samples = rand.(rng, b.deposit_dists)
+    v = rand.(rng, b.v_dists)
     t = b.t
-    V_tot = b.V_tot
-    I_tot = b.I_tot
-    have_mined = b.have_mined
-    return State(deposit_samples, t, V_tot, I_tot, have_mined)
+    Vₜ = b.Vₜ
+    Iₜ = b.Iₜ
+    m = b.m
+    return State(v, t, Vₜ, Iₜ, m)
 end
 
 # Define == operator to use in the termination thing, just compares two states
-Base.:(==)(s1::State, s2::State) = (s1.deposits == s2.deposits) && (s1.t == s2.t) && (s1.Vₜ == s2.Vₜ) && (s1.Iₜ == s2.Iₜ) &&  (s1.have_mined == s2.have_mined)
+Base.:(==)(s1::State, s2::State) = (s1.v == s2.v) && (s1.t == s2.t) && (s1.Vₜ == s2.Vₜ) && (s1.Iₜ == s2.Iₜ) &&  (s1.m == s2.m)
 
 ##Helper Functions Moved from LiPOMDP.jl
 function random_initial_state(P::LiPOMDP, rng::AbstractRNG=Random.default_rng())
@@ -354,110 +377,21 @@ function random_initial_belief(s::State, rng::AbstractRNG=Random.default_rng())
     t = s.t
     V_tot = s.Vₜ
     I_tot = s.Iₜ
-    have_mined = s.have_mined
-    return LiBelief(deposit_dists, t, V_tot, I_tot, have_mined)
+    m = s.m
+    return LiBelief(deposit_dists, t, V_tot, I_tot, m)
 end
 
 # kalman_step is used in the belief updater update function
-function kalman_step(P::LiPOMDP, μ::Float64, σ::Float64, z::Float64)
-    k = σ / (σ + P.σ_obs)  # Kalman gain
+function kalman_step(σo, μ::Float64, σ::Float64, z::Float64)
+    k = σ / (σ + σo)  # Kalman gain
     μ_prime = μ + k * (z - μ)  # Estimate new mean
     σ_prime = (1 - k) * σ   # Estimate new uncertainty
     return μ_prime, σ_prime
 end
 
 
-function get_rewards(pomdp, hist)
-
-    explore_actions = []
-    explore_times = []
-    invest_actions = []
-    invest_times = []
-    mine_actions = []
-    mine_times = []
-    decommision_actions = []
-    decommision_times = []
-
-    r1 = []
-    r2_domestic = []
-    r2_imported = []
-    r3 = []
-    r4 = []
-    r5 = []
-    
-    for (_, step) in enumerate(hist)
-        a = step.a
-        s = step.s
-        a_type = get_action_type(a)
-        dnum = get_site_number(a)
-
-        if a_type == "EXPLORE"
-            if !s.have_mined[dnum]
-                push!(explore_actions, dnum)
-                push!(explore_times, step.t)
-            end            
-        else
-            if !s.have_mined[dnum]
-                push!(invest_actions, dnum)
-                push!(invest_times, step.t)
-            end
-        end
-
-        for i in 1:4
-            if s.have_mined[i] 
-                if  s.deposits[i] > 0
-                    push!(mine_actions, i)
-                    push!(mine_times, step.t)
-                else
-                    push!(decommision_actions, i)
-                    push!(decommision_times, step.t)
-                end
-            end
-        end
-
-        r2_ = compute_r2(pomdp, s, a)
-        push!(r1, compute_r1(pomdp, s, a))        
-        push!(r2_domestic, r2_.domestic)
-        push!(r2_imported, r2_.imported)
-        push!(r3, compute_r3(pomdp, s, a))
-        push!(r4, compute_r4(pomdp, s, a))
-        push!(r5, compute_r5(pomdp, s, a)*0.25)
-    end
-
-    return (
-        a_explore=explore_actions, t_explore=explore_times, 
-        a_mine=mine_actions, t_mine=mine_times, 
-        a_invest=invest_actions, t_invest=invest_times,
-        a_decommision=decommision_actions, t_decommision=decommision_times,
-        r1=r1, r2=(domestic=r2_domestic, imported=r2_imported), 
-        r3=r3, r4=r4, r5=r5)
+function save_policy(policy, filename)    
+    return save(filename, "policy", policy)
 end
 
-function plot_results(pomdp::LiPOMDP, df::NamedTuple;ylims=(-200, 200))
-    T = pomdp.time_horizon
-    #plot 1: actions vs time
-    p0 = scatter(df.t_explore, df.a_explore, label="EXPLORE", markersize=10, xticks=1:T);
-    scatter!(df.t_invest, df.a_invest, label="INVEST", markersize=10);
-    scatter!(df.t_decommision, df.a_decommision, label="DECOMMISSION/REHAB", markersize=10);
-    scatter!(
-        df.t_mine, df.a_mine, 
-        label="MINE", markersize=10, 
-        xticks=0:1:T, 
-        yticks=(1:4, ["1 (SilverPeak, USA)", "2 (ThackerPass, USA)", "3 (Greenbushes, AUS)", "4 (Pilgangoora, AUS)"]),
-        ylims=(0.5, 4.5), 
-        ylabel="Deposit Site", xlabel="Time", 
-        title="Actions vs Time", 
-        legend=:outerbottomright);
-    vline!([pomdp.t_goal], label="Time Delay Goal", color=:red, linestyle=:dash);        
-
-    #set xticks to be integers
-    p1 = bar(df.r1, label="r1", xlabel="Time", ylabel="\$ Value (in Millions)", title="Domestic Mining (Penalty)", legend=false, xticks=0:5:T, ylims=ylims);
-    p5 = bar(df.r5, label="r5", xlabel="Time", ylabel="\$ Value (in Millions)", title="Cash Flow", legend=false, ylims=ylims, xticks=0:5:T);
-    p4 = bar(df.r4, label="r4", xlabel="Time", ylabel="\$ Value (in Millions)", title="Unmet Demand (Penalty)", legend=false, ylims=ylims=ylims, xticks=0:5:T);
-    p2 = bar(df.r2.domestic+df.r2.imported, label="r2", xlabel="Time", ylabel="Thousand Metric Tons", title="LCE Volume Mined", legend=false, xticks=0:5:T);
-    p3 = bar(df.r3, label="r3", xlabel="Time", ylabel="Units", title="CO2 Emission", legend=false, ylims=(-30, 0), xticks=0:5:T);
-
-    prow1 = plot(p5, p1, p4, layout=(1, 3), margin=3mm);  
-    prow2 = plot(p2, p3, layout=(1, 2));  
-    return (action=p0, econ=prow1, other=prow2)
-end
+extract_belief(up::LiBeliefUpdater, node::POWTreeObsNode{B,A,O}) where {B,A,O} = node.belief
