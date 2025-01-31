@@ -92,8 +92,8 @@ max_steps=30
 
 hr = HistoryRecorder(max_steps=max_steps)
 
-@time random_hist = simulate(hr, pomdp, random_planner, up, b);
-println("reward $(typeof(random_planner)): $(round(discounted_reward(random_hist), digits=2))")
+@time random_hist = simulate(hr, pomdp, policy, up, b);
+println("reward $(typeof(policy)): $(round(discounted_reward(random_hist), digits=2))")
 
 
 # @time robust_hist = simulate(hr, pomdp, robust_planner, up, b);
@@ -102,8 +102,8 @@ println("reward $(typeof(random_planner)): $(round(discounted_reward(random_hist
 # @time phist = simulate(hr, pomdp, pomcpow_planner, up, b);
 # println("reward POMCPOW Planner: $(round(discounted_reward(phist), digits=2))")
 
-df = get_rewards(pomdp, random_hist);
-p = plot_results(pomdp, df);
+df = _get_rewards(pomdp, random_hist);
+p = _plot_results(pomdp, df);
 pall = plot(p.action, p.econ, p.other, layout=(3, 1), size=(1100, 800), margin=5mm)
 savefig(pall, "results.pdf")
 
