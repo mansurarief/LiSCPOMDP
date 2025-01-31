@@ -1,3 +1,9 @@
+#=
+Original Authors: Yasmine Alonso, Mansur Arief, Anthony Corso, Jef Caers, and Mykel Kochenderfer
+Extended by: CJ Oshiro, Mansur Arief, Mykel Kochenderfer
+----------------
+=#
+
 function POMDPs.initialstate(P::LiPOMDP)
     return Deterministic(P.init_state)
 end
@@ -298,15 +304,19 @@ POMDPs.discount(P::LiPOMDP) = P.γ
 POMDPs.isterminal(P::LiPOMDP, s::State) = s == P.null_state || s.t > P.T
 
 function POMDPs.initialize_belief(up::LiBeliefUpdater)
-
+#=
     deposit_dists = [
         Normal(up.P.init_state.v[1]),
         Normal(up.P.init_state.v[2]),
         Normal(up.P.init_state.v[3]),
         Normal(up.P.init_state.v[4])
     ]
+=#
+    deposit_dists = fill(Normal(), up.P.n_deposits)
+    for i in 1:up.P.n_deposits
+        deposit_dists[i] = Normal(up.P.init_state.deposits[i])
+    end
 
-    
     return LiBelief(deposit_dists, 1, 0.0, 0.0, [false, false, false, false])
 end
 
@@ -346,7 +356,6 @@ function POMDPs.update(up::Updater, b::LiBelief, a::Action, o::Observation)
             ΔI += o.E[j]
         end
     end
-
     
     if site_number > 0
         if site_number in P.Jd

@@ -228,7 +228,7 @@ function str_to_action(s::String)
     elseif s == "EXPLORE3"
         return EXPLORE3
     else
-        return EXPLORE4
+        return "EXPLORE"
     end
 end
 

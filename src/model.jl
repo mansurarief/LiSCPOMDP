@@ -12,6 +12,13 @@ end
     v::Vector{Float64} # [v₁, v₂, v₃, v₄]
     E::Vector{Float64} # [E₁, E₂, E₃, E₄] #E is the amount of lithium extracted from foreign mines
     Z::Vector{Float64} # [Z₁, Z₂, Z₃, Z₄] #Z is the amount of lithium arrived at the processing plant (E - L(oss))
+@with_kw mutable struct Action
+    a::String
+end
+
+
+@with_kw mutable struct Observation #TODO: implement this as part of your pomdp
+    deposits::Vector{Float64} # [v₁, v₂, v₃, v₄]
 end
 
 #TODO: check if a;l parameters are correct with the paper
