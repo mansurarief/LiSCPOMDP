@@ -246,7 +246,7 @@ function POMDPs.observation(P::LiPOMDP, a::Action, sp::State)
 
     # First generate observations for all operating mines
     for j in 1:P.n
-        if sp.m[j] || (action_type == "EXPLORE" && !sp.m[site_number])
+        if sp.m[j] || (action_type == "EXPLORE" && !sp.m[site_number] && site_number == j)
             site_dist = Normal(sp.v[j], P.σo)
             quantile_vols = P.disc_points 
             chunk_boundaries = compute_chunk_boundaries(quantile_vols)
