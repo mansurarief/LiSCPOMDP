@@ -24,7 +24,8 @@ pomdp = LiPOMDP(
     p=1.0, ρ=0.6, 
     T=31, w=[0.1, 3.2, 0.1, 0.2], 
     a=[-20, -20, -20, -30], 
-    mine_rate=[300, 300, 100, 100])
+    mine_rate=[300, 300, 100, 100], 
+    correct_init_estimate=true)
 
 
 up = LiBeliefUpdater(pomdp)

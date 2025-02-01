@@ -265,12 +265,21 @@ POMDPs.isterminal(P::LiPOMDP, s::State) = s == P.null_state || s.t > P.T
 
 function POMDPs.initialize_belief(up::LiBeliefUpdater)
 
-    deposit_dists = [
-        Normal(up.P.init_state.v[1], up.P.σo),
-        Normal(up.P.init_state.v[2], up.P.σo),
-        Normal(up.P.init_state.v[3], up.P.σo),
-        Normal(up.P.init_state.v[4], up.P.σo)
-    ]
+    if up.P.correct_init_estimate
+        deposit_dists = [
+            Normal(up.P.init_state.v[1], up.P.σo),
+            Normal(up.P.init_state.v[2], up.P.σo),
+            Normal(up.P.init_state.v[3], up.P.σo),
+            Normal(up.P.init_state.v[4], up.P.σo)
+        ]
+    else
+        deposit_dists = [
+            Normal(60_000.0, up.P.σo),
+            Normal(40_000.0, up.P.σo),
+            Normal(80_000.0, up.P.σo),
+            Normal(60_000.0, up.P.σo)
+        ]
+    end
 
     
     return LiBelief(deposit_dists, 1, 0.0, 0.0, [false, false, false, false])

@@ -72,6 +72,7 @@ end
     pd::Float64=100.0                   # domestic mining penalty, if done before t_goal
     rng::AbstractRNG=MersenneTwister(1) # random number generator
     disc_points::Vector{Float64}=collect(0.0:5_000.0:60_000.0) # discretization points for observations
+    correct_init_estimate::Bool=true    # whether to use the correct initial estimate of the state
 end
 
 
