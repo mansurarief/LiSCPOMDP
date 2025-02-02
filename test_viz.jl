@@ -1,7 +1,6 @@
 using Random
 using POMDPs 
 using POMDPTools
-using POMDPPolicies
 using LiPOMDPs
 using MCTS
 using DiscreteValueIteration
@@ -35,12 +34,12 @@ eco_planner = EmissionAwarePolicy(pomdp, [true, true, true, true])
 #  )
 # mcts_planner = solve(mcts_solver, mdp)
 
-solver = POMCPOW.POMCPOWSolver( 
+solver = POMCPOW.POMCPOWSolver(
      tree_queries=1000, 
      estimate_value = 0, 
      k_observation=4., 
      alpha_observation=0.06, 
-     max_depth=15, #what is this?
+     max_depth=15, 
      enable_action_pw=false,
      init_N=10  
  ) 

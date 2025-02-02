@@ -13,7 +13,6 @@ using POMDPTools
 using LiPOMDPs
 using MCTS
 using DiscreteValueIteration
-using POMDPPolicies
 using POMCPOW
 using Parameters
 using Distributions

@@ -1,7 +1,6 @@
 using Random
 using POMDPs 
 using POMDPTools
-using POMDPPolicies
 using LiPOMDPs
 using MCTS
 using DiscreteValueIteration
