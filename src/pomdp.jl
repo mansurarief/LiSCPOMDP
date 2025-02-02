@@ -101,37 +101,25 @@ function compute_r4(P::LiPOMDP, s::State, a::Action; demand_unfulfilled_penalty=
     return P.demands[Int(s.t)] > production ? demand_unfulfilled_penalty : 0
 end
 
-function compute_stochastic_price(P::LiPOMDP, s::State)
+function compute_cashflow(P::LiPOMDP, s::State)
     reward = 0
-    for (idx, mine) in enumerate(s.have_mined)
+    for mine in s.have_mined
         if mine
-            stochastic_price = rand(P.site_to_dist[mine])
-            reward += P.mine_output * stochastic_price
-        end
-    end
-    return reward
-end
-
-function compute_deterministic_price(P::LiPOMDP, s::State)
-    reward = 0
-    for (idx, mine) in enumerate(s.have_mined)
-        if mine
-            price = mean(P.site_to_dist[mine]) # Deterministic price is mean of dist for stochastic
+            if stochastic
+                price = rand(P.site_to_dist[mine])
+            else
+                price = mean(P.site_to_dist[mine])
+            end
             reward += P.mine_output * price
         end
-    end
     return reward
 end
 
 function compute_r5(P::LiPOMDP, s::State, a::Action; capex_per_mine=-500, opex_per_mine=-25, price=50)
     reward = 0
 
-    if P.stochastic_price
-        reward += compute_stochastic_price(P, s)
-    else
-        reward += compute_deterministic_price(P, s)
-    end
-    
+    reward += compute_cashflow(P, s)
+
     action_type = get_action_type(a)
     site_num = get_site_number(a)
 
