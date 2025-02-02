@@ -42,7 +42,8 @@ end
     CO2_emissions::Vector{Float64}  #[C₁, C₂, C₃, C₄] amount of CO2 each site emits
     null_state::State
     init_state::State
-    site_to_dist::Dict 
+    site_to_dist::Dict
+    stochastic_price::Bool 
 end
 
 function initialize_lipomdp(;
@@ -66,7 +67,8 @@ function initialize_lipomdp(;
     CO2_emissions=[5, 7, 2, 5],
     null_state=State([-1, -1, -1, -1], -1, -1, -1, [true, true, true, true]),
     init_state=State([16.0, 60.0, 60.0, 50.0], 1, 0.0, 0.0, [false, false, false, false]), # SilverPeak and ThackerPass are domestic, Greenbushes and Pilgangoora are foreign #TODO; find some reference
-    site_to_dist=Dict(0=>Normal(50,3), 1=>Normal(70,10), 2=>Normal(52,5), 3=>Normal(60,4))
+    site_to_dist=Dict(0=>Normal(50,3), 1=>Normal(70,10), 2=>Normal(52,5), 3=>Normal(60,4)),
+    stochastic_price=false
     )
     return LiPOMDP(
         t_goal=t_goal, 
@@ -89,7 +91,8 @@ function initialize_lipomdp(;
         CO2_emissions=CO2_emissions,
         null_state=null_state,
         init_state=init_state,
-        site_to_dist=site_to_dist
+        site_to_dist=site_to_dist,
+        stochastic_price=stochastic_price
     )
 end
 

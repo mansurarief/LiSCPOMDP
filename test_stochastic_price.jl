@@ -7,7 +7,7 @@ using DiscreteValueIteration
 using POMCPOW 
 using Distributions
 
-pomdp = initialize_lipomdp(obj_weights=[0.25, 0.25, 1.0, 1.0, 0.25]) 
+pomdp = initialize_lipomdp(obj_weights=[0.25, 0.25, 1.0, 1.0, 0.25], stochastic_price=true) 
 up = LiBeliefUpdater(pomdp)
 b = initialize_belief(up)
 mdp = GenerativeBeliefMDP(pomdp, up)
