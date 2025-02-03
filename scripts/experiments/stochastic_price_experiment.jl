@@ -51,45 +51,46 @@ planners = [(pomcpow_planner, "POMCPOW Planner"),
             ]
 
 for (planner, name) in planners
-    reward_tot = 0.0
-    reward_disc = 0.0
-    emission_tot = 0.0
-    emission_disc = 0.0
-    vol_tot = 0.0 #mined domestically
-    imported_tot = 0.0 #imported/mined internationally
-    disc = 1.0
-
+    reward_tot_all = []
+    reward_disc_all = []
+    
     println(" ")
     println("=====Simulating ", typeof(planner), "=====")
     println(" ")
-    for (s, a, o, r) in stepthrough(pomdp, planner, "s,a,o,r", max_steps=max_steps)
-        println("in state $s")
-        println("took action $a")
-        println("received observation $o and reward $r")
 
-        #compute reward and discounted reward
-        reward_tot += r
-        reward_disc += r * disc
+    for t = 1:n_reps
+        reward_tot = 0.0
+        reward_disc = 0.0
+        emission_tot = 0.0
+        emission_disc = 0.0
+        vol_tot = 0.0 #mined domestically
+        imported_tot = 0.0 #imported/mined internationally
+        disc = 1.0
 
-        #compute emissions and discount emeissions
-        e = get_action_emission(pomdp, a)
-        emission_tot += e
-        emission_disc += e * disc
+        for (s, a, o, r) in stepthrough(pomdp, planner, "s,a,o,r", max_steps=max_steps)
 
-        if a.a == "MINE1" || a.a == "MINE2"
-            vol_tot += 1
-        elseif a.a == "MINE3" || a.a == "MINE4"
-            imported_tot += 1
-        end
+            #compute reward and discounted reward
+            reward_tot += r
+            reward_disc += r * disc
 
-        disc *= discount(pomdp)
+            #compute emissions and discount emeissions
+            e = get_action_emission(pomdp, a)
+            emission_tot += e
+            emission_disc += e * disc
+
+            if a.a == "MINE1" || a.a == "MINE2"
+                vol_tot += 1
+            elseif a.a == "MINE3" || a.a == "MINE4"
+                imported_tot += 1
+            end
+
+            disc *= discount(pomdp)
+        end 
+        push!(reward_tot_all, reward_tot)
+        push!(reward_disc_all, reward_disc)
     end
-    named_tuple = (reward_tot = reward_tot, 
-                   reward_disc = reward_disc,
-                   emission_tot = emission_tot, 
-                   emission_disc = emission_disc, 
-                   vol_tot = vol_tot, 
-                   imported_tot = imported_tot)
+    named_tuple = (reward_tot_avg = sum(reward_tot_all)/length(reward_tot_all), 
+                    reward_disc = sum(reward_disc_all)/length(reward_disc_all))
 
     results[name] = named_tuple
 end
@@ -138,45 +139,46 @@ planners = [(pomcpow_planner, "POMCPOW Planner"),
             ]
 
 for (planner, name) in planners
-    reward_tot = 0.0
-    reward_disc = 0.0
-    emission_tot = 0.0
-    emission_disc = 0.0
-    vol_tot = 0.0 #mined domestically
-    imported_tot = 0.0 #imported/mined internationally
-    disc = 1.0
-
+    reward_tot_all = []
+    reward_disc_all = []
+    
     println(" ")
     println("=====Simulating ", typeof(planner), "=====")
     println(" ")
-    for (s, a, o, r) in stepthrough(pomdp, planner, "s,a,o,r", max_steps=max_steps)
-        println("in state $s")
-        println("took action $a")
-        println("received observation $o and reward $r")
 
-        #compute reward and discounted reward
-        reward_tot += r
-        reward_disc += r * disc
+    for t = 1:n_reps
+        reward_tot = 0.0
+        reward_disc = 0.0
+        emission_tot = 0.0
+        emission_disc = 0.0
+        vol_tot = 0.0 #mined domestically
+        imported_tot = 0.0 #imported/mined internationally
+        disc = 1.0
 
-        #compute emissions and discount emeissions
-        e = get_action_emission(pomdp, a)
-        emission_tot += e
-        emission_disc += e * disc
+        for (s, a, o, r) in stepthrough(pomdp, planner, "s,a,o,r", max_steps=max_steps)
 
-        if a.a == "MINE1" || a.a == "MINE2"
-            vol_tot += 1
-        elseif a.a == "MINE3" || a.a == "MINE4"
-            imported_tot += 1
-        end
+            #compute reward and discounted reward
+            reward_tot += r
+            reward_disc += r * disc
 
-        disc *= discount(pomdp)
+            #compute emissions and discount emeissions
+            e = get_action_emission(pomdp, a)
+            emission_tot += e
+            emission_disc += e * disc
+
+            if a.a == "MINE1" || a.a == "MINE2"
+                vol_tot += 1
+            elseif a.a == "MINE3" || a.a == "MINE4"
+                imported_tot += 1
+            end
+
+            disc *= discount(pomdp)
+        end 
+        push!(reward_tot_all, reward_tot)
+        push!(reward_disc_all, reward_disc)
     end
-    named_tuple = (reward_tot = reward_tot, 
-                   reward_disc = reward_disc,
-                   emission_tot = emission_tot, 
-                   emission_disc = emission_disc, 
-                   vol_tot = vol_tot, 
-                   imported_tot = imported_tot)
+    named_tuple = (reward_tot_avg = sum(reward_tot_all)/length(reward_tot_all), 
+                    reward_disc = sum(reward_disc_all)/length(reward_disc_all))
 
     results[name] = named_tuple
 end
