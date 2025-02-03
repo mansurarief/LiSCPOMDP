@@ -105,13 +105,14 @@ function compute_cashflow(P::LiPOMDP, s::State)
     reward = 0
     for mine in s.have_mined
         if mine
-            if stochastic
+            if P.stochastic_price
                 price = rand(P.site_to_dist[mine])
             else
                 price = mean(P.site_to_dist[mine])
             end
             reward += P.mine_output * price
         end
+    end
     return reward
 end
 
