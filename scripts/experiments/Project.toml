@@ -1,0 +1,8 @@
+[deps]
+DiscreteValueIteration = "4b033969-44f6-5439-a48b-c11fa3648068"
+GraphPlot = "a2cc645c-3eea-5389-862e-a155d0052231"
+Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
+MCTS = "e12ccd36-dcad-5f33-8774-9175229e7b33"
+POMCPOW = "4c53ee00-974c-466f-8fa5-8dd73959bbab"
+POMDPTools = "7588e00f-9cae-40de-98dc-e0c70c48cdd7"
+POMDPs = "a93abf59-7444-517b-a68a-c42f96afdd7d"

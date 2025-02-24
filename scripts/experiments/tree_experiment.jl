@@ -12,9 +12,11 @@ using Plots
 using Statistics
 using ProgressBars
 using DataStructures
+using D3trees
 
 rng = MersenneTwister(1) #control seeding, specific random number generator, sampling initial state and sampling it to random seeding 
 #set the random seed generator to start at the same start
+
 
 function display_results(result_dict)
     for (key, value) in results
@@ -53,7 +55,9 @@ function experiment(planners, eval_pomdp, n_reps=20, max_steps=30)
             imported_tot = 0.0 #imported/mined internationally
             disc = 1.0 #change to 0.99 
     
-            for (s, a, o, r) in stepthrough(eval_pomdp, planner, "s,a,o,r", max_steps=max_steps)
+            for (s, a, o, r) in stepthrough(eval_pomdp, planner, "s,a,o,r, action_info", max_steps=max_steps)
+                tree = info[:tree]
+                t = D3Tree(tree)
     
                 #compute reward and discounted reward
                 reward_tot += r
