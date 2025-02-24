@@ -110,7 +110,8 @@ function plot_pareto(results)
     xs = collect(LinRange(0, 1, 6))
     ys = [results[x]["volume"][1] for x in xs]
     yerror = [results[x]["volume"][2] for x in xs]
-    plot(xs,ys,grid=false,yerror=yerror)
+    p = plot(xs,ys,grid=false,yerror=yerror, label="y = Total Volume", xlabel="Emissions Reward Coefficient", xticks=0:0.2:1)
+    savefig(p, "emissions_volume_tradeoff.png")
 end
 
 function compute_tradeoff(alpha=1, stochastic_price=false, train_same=true)
