@@ -76,7 +76,7 @@ function compute_r2(P::LiPOMDP, s::State, a::Action)
 end
 
 function compute_r3(P::LiPOMDP, s::State, a::Action)
-    action_type = 
+    action_type = get_action_type(a)
     site_num = get_site_number(a)
 
     if action_type == "MINE" && !s.have_mined[site_num]
@@ -110,6 +110,7 @@ function compute_cashflow(P::LiPOMDP, s::State)
             else
                 price = mean(P.site_to_dist[mine])
             end
+
             reward += P.mine_output * price
         end
     end
@@ -147,7 +148,8 @@ function POMDPs.reward(P::LiPOMDP, s::State, a::Action)
     capex_per_mine = -25
     opex_per_mine = -10
     material_price = 100
-    
+
+
     # Obj #1: delay mining domestically P.t_goal years, and if we do that before P.t_goal, we are penalized
     r1 = compute_r1(P, s, a, domestic_mining_penalty=domestic_mining_penalty)
     
@@ -155,7 +157,7 @@ function POMDPs.reward(P::LiPOMDP, s::State, a::Action)
     r2 = sum(compute_r2(P, s, a))
 
     # Obj #3: minimize CO2 emissions
-    r3 = compute_r3(P, s, a)
+    r3 = compute_r3(P, s, a) * P.alpha
 
     # Obj #4: satisfy the demand at everytimestep
     r4 = compute_r4(P, s, a, demand_unfulfilled_penalty=demand_unfulfilled_penalty)
