@@ -45,6 +45,7 @@ end
     site_to_dist::Dict
     stochastic_price::Bool
     alpha::Float64 # Parameter to control tradeoff between emissions and volume
+    compute_tradeoff::Bool
 end
 
 function initialize_lipomdp(;
@@ -70,7 +71,8 @@ function initialize_lipomdp(;
     init_state=State([16.0, 60.0, 60.0, 50.0], 1, 0.0, 0.0, [false, false, false, false]), # SilverPeak and ThackerPass are domestic, Greenbushes and Pilgangoora are foreign #TODO; find some reference
     site_to_dist=Dict(1=>Normal(50,3), 2=>Normal(70,10), 3=>Normal(52,5), 4=>Normal(60,4)),
     stochastic_price=false,
-    alpha=1 # Default reward
+    alpha=1, # Default reward
+    compute_tradeoff=false
     )
     return LiPOMDP(
         t_goal=t_goal, 
@@ -95,7 +97,8 @@ function initialize_lipomdp(;
         init_state=init_state,
         site_to_dist=site_to_dist,
         stochastic_price=stochastic_price,
-        alpha=alpha
+        alpha=alpha,
+        compute_tradeoff=compute_tradeoff
     )
 end
 

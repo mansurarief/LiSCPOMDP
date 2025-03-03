@@ -72,11 +72,11 @@ function compute_r1(P::LiPOMDP, s::State, a::Action; domestic_mining_penalty=-20
 end
 
 function compute_r2(P::LiPOMDP, s::State, a::Action)
-    return (domestic=s.Vₜ, imported=s.Iₜ)
+    return (domestic=s.Vₜ, imported=s.Iₜ) 
 end
 
 function compute_r3(P::LiPOMDP, s::State, a::Action)
-    action_type = get_action_type(a)
+    action_type = get_action_type(a) 
     site_num = get_site_number(a)
 
     if action_type == "MINE" && !s.have_mined[site_num]
@@ -134,12 +134,22 @@ function compute_r5(P::LiPOMDP, s::State, a::Action; capex_per_mine=-500, opex_p
     return reward
 end
 
+function compute_reward_tradeoff(P::LiPOMDP, s::State, a::Action)
+    emissions_reward = P.alpha * compute_r3(P, s, a)
+    volume_reward = (1 - P.alpha) * sum(compute_r2(P, s, a)) * 4.866658
+    return emissions_reward + volume_reward
+end
+
 function POMDPs.reward(P::LiPOMDP, s::State, a::Action)
 
     #domestic_mining_actions = [MINE1, MINE2]
 
     if isterminal(P, s)
         return 0
+    end
+
+    if P.compute_tradeoff # Use tradeoff reward
+        return compute_reward_tradeoff(P, s, a)
     end
 
     #TODO: move these to the problem struct
@@ -157,7 +167,7 @@ function POMDPs.reward(P::LiPOMDP, s::State, a::Action)
     r2 = sum(compute_r2(P, s, a))
 
     # Obj #3: minimize CO2 emissions
-    r3 = compute_r3(P, s, a) * P.alpha
+    r3 = compute_r3(P, s, a)
 
     # Obj #4: satisfy the demand at everytimestep
     r4 = compute_r4(P, s, a, demand_unfulfilled_penalty=demand_unfulfilled_penalty)

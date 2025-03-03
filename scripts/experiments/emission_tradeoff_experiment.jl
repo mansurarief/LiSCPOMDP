@@ -30,6 +30,7 @@ end
 
 function experiment(planners, eval_pomdp, n_reps=20, max_steps=30)
     results = Dict() 
+    n_reps = 100
 
     for (planner, planner_name) in planners
         reward_tot_all = []
@@ -39,9 +40,9 @@ function experiment(planners, eval_pomdp, n_reps=20, max_steps=30)
         domestic_tot_all = []
         imported_tot_all = []
         
-        println(" ")
-        println("=====Simulating ", typeof(planner), "=====")
-        println(" ")
+        #println(" ")
+        #println("=====Simulating ", typeof(planner), "=====")
+        #println(" ")
     
         for t = tqdm(1:n_reps)
             reward_tot = 0.0
@@ -107,15 +108,67 @@ function display_pomcpow_tree(planner, state)
 end
 
 function plot_pareto(results)
-    xs = collect(LinRange(0, 1, 6))
-    ys = [results[x]["volume"][1] for x in xs]
-    yerror = [results[x]["volume"][2] for x in xs]
-    p = plot(xs,ys,grid=false,yerror=yerror, label="y = Total Volume", xlabel="Emissions Reward Coefficient", xticks=0:0.2:1)
-    savefig(p, "emissions_volume_tradeoff.png")
+    alphas = LinRange(0, 1, 50)  # Linearly spaced reward coefficients
+
+    # Extract data
+    xs = [results[alpha]["emissions"][1] for alpha in alphas]
+    ys = [results[alpha]["volume"][1]    for alpha in alphas]
+
+    # Assuming you also have x-error stored somewhere, for example:
+    # xerror = [results[alpha]["emissions"][2] for alpha in alphas]
+    # If you do NOT have x-errors, just remove the xerror below.
+    xerror = [results[alpha]["emissions"][2] for alpha in alphas]
+
+    # yerror is your known volume error:
+    yerror = [results[alpha]["volume"][2] for alpha in alphas]
+
+    # Sort values (to prevent plot distortions if you also draw lines)
+    sorted_indices = sortperm(xs)
+    xs     = xs[sorted_indices]
+    ys     = ys[sorted_indices]
+    xerror = xerror[sorted_indices]
+    yerror = yerror[sorted_indices]
+
+    # Create the plot
+    # Here seriestype=:scatter draws individual points, then we add error bars
+    # Note: you could also add seriestype=:path if you want them connected, or use 'plot!' for overplotting lines.
+    p = plot(
+        xs,
+        ys,
+        xerr = xerror,
+        yerr = yerror,
+        seriestype = :scatter,
+        xlabel = "Total Emissions",
+        ylabel = "Total Volume",
+        title = "Pareto Tradeoff: Emissions vs Volume",
+        legend = :topright,
+        grid = true,
+        gridalpha = 0.3,
+        linewidth = 2.5,
+        size = (850, 500),
+        background_color = :white,
+        foreground_color = :black,
+        label = "Emissions vs Volume ± Error"
+    )
+
+    # Optionally, if you want to connect the points with a line, add:
+    plot!(xs, ys,
+        seriestype = :path,
+        label = "Pareto curve",
+        linecolor = :blue,
+        alpha = 0.9,
+        markershape = :circle,
+        markercolor = :red,
+        markersize = 7,
+        markerstrokewidth = 2
+    )
+
+    # Save figure
+    savefig(p, "emissions_volume_tradeoff_fixed.png")
 end
 
 function compute_tradeoff(alpha=1, stochastic_price=false, train_same=true)
-    train_pomdp = initialize_lipomdp(alpha=alpha, stochastic_price=stochastic_price)
+    train_pomdp = initialize_lipomdp(alpha=alpha, stochastic_price=stochastic_price, compute_tradeoff=true)
     train_up = LiBeliefUpdater(train_pomdp) 
     train_b = initialize_belief(train_up)
 
@@ -153,16 +206,16 @@ function compute_tradeoff(alpha=1, stochastic_price=false, train_same=true)
     ]
 
     results = experiment(planners, eval_pomdp)
-    display_results(results)
+    #display_results(results)
     return results
 end
 
 function main()
-    alpha_values = [0, 0.2, 0.4, 0.6, 0.8, 1.0]
+    alpha_values = collect(LinRange(0, 1, 50))
     results_rand = Dict()
     results_pomcpow = Dict()
     emissions = []
-    for alpha in alpha_values
+    for alpha in tqdm(alpha_values)
         alpha_results = compute_tradeoff(alpha, false, true)
         results_pomcpow[alpha] = Dict("emissions" => alpha_results["POMCPOW Planner"]["Total Emissions"], 
                               "volume"    => (alpha_results["POMCPOW Planner"]["Total Domestic"][1] + 
@@ -171,7 +224,7 @@ function main()
                                              alpha_results["POMCPOW Planner"]["Total Imported"][2]))
 
     end
-    print(results_pomcpow)
+    # print(results_pomcpow)
     plot_pareto(results_pomcpow)
 end
 
