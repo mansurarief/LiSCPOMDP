@@ -15,12 +15,12 @@ using Statistics
 using D3Trees
 using MCTS
 using Plots.PlotMeasures
- 
-export 
-    LiPOMDP, 
-    LiBelief, 
+
+export
+    LiPOMDP,
+    LiBelief,
     LiBeliefUpdater,
-    State, 
+    State,
     Action,
     initialize_lipomdp,
     mine_params
@@ -47,12 +47,13 @@ export
     RandPolicy,
     EfficiencyPolicy,
     EfficiencyPolicyWithUncertainty,
-    EmissionAwarePolicy
+    EmissionAwarePolicy,
+    ImportOnlyPolicy
 include("policies.jl")
 
-export 
+export
     #Functions
-    compute_r1, 
+    compute_r1,
     compute_r2,
     compute_r3,
     compute_r4,

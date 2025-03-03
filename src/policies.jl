@@ -237,3 +237,69 @@ end
 function POMDPs.updater(policy::HeuristicPolicy)
     return LiBeliefUpdater(policy.pomdp)
 end
+
+
+#IMPORT ONLY POLICY -- never mines from domestic deposits, prioritizes foreign deposits with largest volume
+struct ImportOnlyPolicy <: Policy
+    pomdp::LiPOMDP
+    t_mine::Vector{Int}
+    t_explore::Vector{Vector{Int}}
+end
+
+# Constructor that creates a schedule for exploration and mining
+function ImportOnlyPolicy(pomdp::LiPOMDP, max_steps::Int)
+    n_deposits = pomdp.n_deposits
+    
+    # We'll define domestic and foreign deposit indices
+    domestic_indices = [1, 2]  # First two deposits are domestic
+    foreign_indices = [3, 4]   # Last two deposits are foreign
+    
+    # Initialize arrays
+    t_explore = [Int[] for _ in 1:n_deposits]
+    t_mine = zeros(Int, n_deposits)
+    
+    # First, schedule exploration for all deposits
+    current_step = 1
+    for i in 1:n_deposits
+        t_explore[i] = [current_step]
+        current_step += 1
+    end
+    
+    # Then, schedule mining only for foreign deposits
+    for i in foreign_indices
+        if current_step <= max_steps
+            t_mine[i] = current_step
+            current_step += 1
+        end
+    end
+    
+    # For domestic deposits, set mining time to 0 (never mine)
+    for i in domestic_indices
+        t_mine[i] = 0
+    end
+    
+    return ImportOnlyPolicy(pomdp, t_mine, t_explore)
+end
+
+function POMDPs.action(p::ImportOnlyPolicy, b::LiBelief)
+    # Check if we should explore any deposit at this time
+    for i in 1:length(p.t_explore)
+        if b.t in p.t_explore[i]
+            return Action("EXPLORE$(i)")
+        end
+    end
+    
+    # Check if we should mine any (foreign) deposit at this time
+    if b.t == p.t_mine[3]
+        return Action("MINE3")
+    elseif b.t == p.t_mine[4]
+        return Action("MINE4")
+    end
+    
+    # If we're not exploring or mining at this time step, do nothing
+    return Action("DONOTHING")
+end
+
+function POMDPs.updater(policy::ImportOnlyPolicy)
+    return LiBeliefUpdater(policy.pomdp)
+end
