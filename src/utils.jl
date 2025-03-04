@@ -178,6 +178,7 @@ function get_action_emission(P, a)
     return r3
 end
 
+#=
 # Inputs an action, outputs the site number of that action
 function get_site_number(a::Action)
     a = a.a
@@ -186,6 +187,18 @@ function get_site_number(a::Action)
         return parse(Int64, a[5:len])
     else
         return parse(Int64, a[8:len])
+    end
+end
+=#
+
+# Inputs an action, outputs either MINE or EXPLORE as a string
+function get_action_type(a::Action)
+    a = a.a
+    len = length(a)
+    if (a[1:4] == "MINE")
+        return "MINE"
+    else
+        return "EXPLORE"
     end
 end
 

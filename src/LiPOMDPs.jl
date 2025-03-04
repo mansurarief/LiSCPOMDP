@@ -48,7 +48,9 @@ export
     EfficiencyPolicy,
     EfficiencyPolicyWithUncertainty,
     EmissionAwarePolicy,
-    ImportOnlyPolicy
+    ImportOnlyPolicy,
+    HeuristicPolicy,
+    ExploreNStepsPolicy
 include("policies.jl")
 
 export

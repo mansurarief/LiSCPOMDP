@@ -110,7 +110,7 @@ function plot_pareto(results)
         seriestype=:scatter,
         xlabel="Total Emissions",
         ylabel="Total Volume",
-        title="Pareto Tradeoff: Explore N Steps Policy",
+        title="Pareto Tradeoff: Import Only Policy",
         legend=:topright,
         grid=true,
         gridalpha=0.3,
@@ -128,7 +128,7 @@ function plot_pareto(results)
         linecolor=:blue,
         num_steps=0.9,
         markershape=:circle,
-        markercolor=:red,
+        markercolor=:pink,
         markersize=7,
         markerstrokewidth=2
     )
@@ -139,14 +139,14 @@ function plot_pareto(results)
 end
 
 
-function compute_tradeoff(num_steps=1, stochastic_price=false, max_steps=100)
+function compute_import_tradeoff(num_steps=1, stochastic_price=false, max_steps=100)
     # Initialize POMDP
     pomdp = initialize_lipomdp(stochastic_price=stochastic_price, compute_tradeoff=true)
 
-    # Create the import-only planner
-    policy = ExploreNStepsPolicy(pomdp=pomdp, explore_steps=num_steps, curr_steps=1)
+    # Create the import-only planner with varying exploration steps
+    policy = ImportOnlyPolicy(pomdp, num_steps)
 
-    # Run experiment directly with the import-only planner
+    # Run experiment
     results = experiment(policy, pomdp, 1000, max_steps)
     return results
 end
@@ -155,14 +155,14 @@ end
 function main()
     max_steps = 100  # Maximum steps to simulate
 
-    num_steps_values=1:5:100
+    num_steps_values = 1:5:100
     # Store results
     results_import_only = Dict()
 
-    println("\nGenerating Pareto curve for ExploreNStepsPolicy policy...")
+    println("\nGenerating Pareto curve for Import Only Policy policy...")
     for num_steps in tqdm(num_steps_values)
         # Compute results for this num_step value
-        results = compute_tradeoff(num_steps, false, max_steps)
+        results = compute_import_tradeoff(num_steps, false, max_steps)
 
         # Store the metrics we need for the Pareto curve
         results_import_only[num_steps] = Dict(
