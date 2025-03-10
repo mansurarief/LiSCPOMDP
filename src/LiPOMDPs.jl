@@ -55,6 +55,7 @@ include("policies.jl")
 
 export
     #Functions
+    initialize_belief_import_only,
     compute_r1,
     compute_r2,
     compute_r3,

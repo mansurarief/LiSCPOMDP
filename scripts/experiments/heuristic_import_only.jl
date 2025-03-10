@@ -22,7 +22,7 @@ function compute_metrics(samples)
     return (mean=sample_mean, se=sample_se)
 end
 
-function experiment(planner, eval_pomdp, n_reps=100, max_steps=30)
+function experiment(planner, eval_pomdp, n_reps=100, max_steps=30, initial_belief=nothing)
     reward_tot_all = []
     reward_disc_all = []
     emission_tot_all = []
@@ -39,7 +39,16 @@ function experiment(planner, eval_pomdp, n_reps=100, max_steps=30)
         imported_tot = 0.0 #imported/mined internationally
         disc = 1.0
 
-        for (s, a, o, r) in stepthrough(eval_pomdp, planner, "s,a,o,r", max_steps=max_steps)
+        # If an initial belief is provided, use it with the appropriate updater
+        if initial_belief === nothing
+            step_iter = stepthrough(eval_pomdp, planner, "s,a,o,r", max_steps=max_steps)
+        else
+            # Get the belief updater from the planner
+            up = updater(planner)
+            step_iter = stepthrough(eval_pomdp, planner, up, initial_belief, "s,a,o,r", max_steps=max_steps)
+        end
+
+        for (s, a, o, r) in step_iter
             #compute reward and discounted reward
             reward_tot += r
             reward_disc += r * disc
@@ -142,14 +151,18 @@ end
 function compute_import_tradeoff(num_steps=1, stochastic_price=false, max_steps=100)
     # Initialize POMDP
     pomdp = initialize_lipomdp(stochastic_price=stochastic_price, compute_tradeoff=true)
-   # train_up = LiBeliefUpdater(train_pomdp) 
-   # train_b = initialize_belief_import_only(train_up)
+    
+    # Create belief updater
+    belief_up = LiBeliefUpdater(pomdp) 
+    
+    # Initialize belief
+    initial_belief = initialize_belief_import_only(belief_up)
+    
     # Create the import-only planner with varying exploration steps
     policy = ImportOnlyPolicy(pomdp, num_steps)
-  #  a = action(policy, train_b)
-
-    # Run experiment
-    results = experiment(policy, pomdp, 1000, max_steps)
+    
+    # You'll need to modify your experiment function to accept an initial belief
+    results = experiment(policy, pomdp, 1000, max_steps, initial_belief)
     return results
 end
 

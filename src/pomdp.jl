@@ -300,6 +300,8 @@ function POMDPs.initialize_belief(up::LiBeliefUpdater)
     for i in 1:up.P.n_deposits
         #initalized belief is a normal distribution centered around the true value, standard deviation is defaulted to one because we only give it a mean 
        deposit_dists[i] = Normal(up.P.init_state.deposits[i]) 
+    end 
+
     t = 1.0
     V_tot = 0.0
     I_tot = 0.0
@@ -308,29 +310,22 @@ function POMDPs.initialize_belief(up::LiBeliefUpdater)
     return LiBelief(deposit_dists, t, V_tot, I_tot, have_mined)
 end
 
-function POMDPs.initialize_belief_import_only(up::LiBeliefUpdater)
-    #=
-        deposit_dists = [
-            Normal(up.P.init_state.deposits[1]),
-            Normal(up.P.init_state.deposits[2]),
-            Normal(up.P.init_state.deposits[3]),
-            Normal(up.P.init_state.deposits[4])
-        ]
-    =#
-        deposit_dists = fill(Normal(), up.P.n_deposits)
-        initial_belief_mean = [16.0, 60.0, 80.0, 120.0] #switched it so it thinks site 3 has less than site 4, when its actually the opposite
-        for i in 1:up.P.n_deposits
-            #initalized belief is a normal distribution centered around the true value, standard deviation is defaulted to one because we only give it a mean 
-           # deposit_dists[i] = Normal(up.P.init_state.deposits[i]) 
-            deposit_dists[i] = Normal(initial_belief_mean[i])
-           
-        t = 1.0
-        V_tot = 0.0
-        I_tot = 0.0
-        have_mined = [false for i in 1:up.P.n_deposits]
-        
-        return LiBelief(deposit_dists, t, V_tot, I_tot, have_mined)
+function initialize_belief_import_only(up::LiBeliefUpdater)
+    deposit_dists = fill(Normal(), up.P.n_deposits)
+    initial_belief_mean = [16.0, 60.0, 80.0, 120.0] # Switched so it thinks site 3 has less than site 4
+    
+    for i in 1:up.P.n_deposits
+        # Initialize belief as a normal distribution centered around the specified mean
+        deposit_dists[i] = Normal(initial_belief_mean[i])
     end
+    
+    t = 1.0
+    V_tot = 0.0
+    I_tot = 0.0
+    have_mined = [false for i in 1:up.P.n_deposits]
+    
+    return LiBelief(deposit_dists, t, V_tot, I_tot, have_mined)
+end
 
 POMDPs.initialize_belief(up::Updater, dist) = POMDPs.initialize_belief(up)
 
