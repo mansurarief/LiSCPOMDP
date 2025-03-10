@@ -142,9 +142,11 @@ end
 function compute_import_tradeoff(num_steps=1, stochastic_price=false, max_steps=100)
     # Initialize POMDP
     pomdp = initialize_lipomdp(stochastic_price=stochastic_price, compute_tradeoff=true)
-
+   # train_up = LiBeliefUpdater(train_pomdp) 
+   # train_b = initialize_belief_import_only(train_up)
     # Create the import-only planner with varying exploration steps
     policy = ImportOnlyPolicy(pomdp, num_steps)
+  #  a = action(policy, train_b)
 
     # Run experiment
     results = experiment(policy, pomdp, 1000, max_steps)
@@ -155,7 +157,7 @@ end
 function main()
     max_steps = 100  # Maximum steps to simulate
 
-    num_steps_values = 1:5:100
+    num_steps_values = 1:5:100 
     # Store results
     results_import_only = Dict()
 

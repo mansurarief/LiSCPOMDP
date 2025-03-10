@@ -343,3 +343,31 @@ function POMDPs.updater(policy::ImportOnlyPolicy)
     return LiBeliefUpdater(policy.pomdp)
 end
 
+#NO EXPLORATION POLICY --  assumes correct initial belief and start mining from the sites with largest estimated reserve
+@with_kw mutable struct NoExplorationPolicy <: Policy
+    pomdp::LiPOMDP
+end
+
+function POMDPs.action(p::NoExplorationPolicy, b::LiBelief)
+    # Calculate the expected amount of lithium at each deposit based on current belief
+    scores = zeros(p.pomdp.n_deposits)
+    
+    for i in 1:p.pomdp.n_deposits
+        if can_explore_here(Action("MINE$(i)"), b)
+            # Use mean of the belief distribution for the deposit
+            score = mean(b.deposit_dists[i])
+        else
+            score = -Inf
+        end
+        scores[i] = score
+    end
+    
+    # Mine the deposit with the highest expected amount
+    _, best_mine = findmax(scores)
+    
+    return Action("MINE$(best_mine)")
+end
+
+function POMDPs.updater(policy::NoExplorationPolicy)
+    return LiBeliefUpdater(policy.pomdp)
+end
