@@ -1,3 +1,29 @@
+# First: using Distributed
+"""import Random
+import POMDPs 
+import POMDPTools
+import LiPOMDPs
+import MCTS
+import DiscreteValueIteration
+import POMCPOW 
+import Distributions
+import Parameters
+import ARDESPOT
+import Plots
+import Statistics
+import ProgressBars
+import Distributed"""
+
+# Import without other commands doesn't do anything
+using Distributed # Do this to get access to @everywhere function
+addprocs(14) # How many threads you can have -- use nproc to find the number for each machine
+
+# Begin vs end -- let is local-scoped
+# @everywhere before you get the code you want to compile on this host + all other processes
+@everywhere begin # Macro that will take all code within begin / end 
+
+__precompile__(false)
+
 using Random
 using POMDPs 
 using POMDPTools
@@ -14,7 +40,6 @@ using ProgressBars
 
 rng = MersenneTwister(1)
 
-
 function display_results(result_dict)
     for (key, value) in results
         println("Key: $key, Value: $value")
@@ -28,9 +53,40 @@ function compute_metrics(samples)
     return (mean = sample_mean, se = sample_se)
 end
 
+function run_simulation(eval_pomdp, planner, max_steps)
+    reward_tot = 0.0
+    reward_disc = 0.0
+    emission_tot = 0.0
+    emission_disc = 0.0
+    vol_tot = 0.0 #mined domestically
+    imported_tot = 0.0 #imported/mined internationally
+    disc = 1.0
+    
+    for (s, a, o, r) in stepthrough(eval_pomdp, planner, "s,a,o,r", max_steps=max_steps)
+    
+        #compute reward and discounted reward
+        reward_tot += r
+        reward_disc += r * disc
+    
+        #compute emissions and discount emeissions
+        e = get_action_emission(eval_pomdp, a)
+        emission_tot += e
+        emission_disc += e * disc
+    
+        if a.a == "MINE1" || a.a == "MINE2"
+            vol_tot += 1
+        elseif a.a == "MINE3" || a.a == "MINE4"
+            imported_tot += 1
+        end
+    
+        disc *= discount(eval_pomdp)
+    end 
+    return reward_tot, reward_disc, emission_tot, emission_disc, vol_tot, imported_tot
+end
+
 function experiment(planners, eval_pomdp, n_reps=20, max_steps=30)
     results = Dict() 
-    n_reps = 100
+    n_reps = 2
 
     for (planner, planner_name) in planners
         reward_tot_all = []
@@ -39,39 +95,9 @@ function experiment(planners, eval_pomdp, n_reps=20, max_steps=30)
         emission_disc_all = []
         domestic_tot_all = []
         imported_tot_all = []
-        
-        #println(" ")
-        #println("=====Simulating ", typeof(planner), "=====")
-        #println(" ")
     
-        for t = tqdm(1:n_reps)
-            reward_tot = 0.0
-            reward_disc = 0.0
-            emission_tot = 0.0
-            emission_disc = 0.0
-            vol_tot = 0.0 #mined domestically
-            imported_tot = 0.0 #imported/mined internationally
-            disc = 1.0
-    
-            for (s, a, o, r) in stepthrough(eval_pomdp, planner, "s,a,o,r", max_steps=max_steps)
-    
-                #compute reward and discounted reward
-                reward_tot += r
-                reward_disc += r * disc
-    
-                #compute emissions and discount emeissions
-                e = get_action_emission(eval_pomdp, a)
-                emission_tot += e
-                emission_disc += e * disc
-    
-                if a.a == "MINE1" || a.a == "MINE2"
-                    vol_tot += 1
-                elseif a.a == "MINE3" || a.a == "MINE4"
-                    imported_tot += 1
-                end
-    
-                disc *= discount(eval_pomdp)
-            end 
+        for t = 1:n_reps
+            reward_tot, reward_disc, emission_tot, emission_disc, vol_tot, imported_tot = run_simulation(eval_pomdp, planner, max_steps)
             push!(reward_tot_all, reward_tot)
             push!(reward_disc_all, reward_disc)
             push!(emission_tot_all, emission_tot)
@@ -109,7 +135,6 @@ end
 
 function plot_pareto(results)
     alphas = LinRange(0, 1, 50)  # Linearly spaced reward coefficients
-
     # Extract data
     xs = [results[alpha]["emissions"][1] for alpha in alphas]
     ys = [results[alpha]["volume"][1]    for alpha in alphas]
@@ -202,7 +227,7 @@ function compute_tradeoff(alpha=1, stochastic_price=false, train_same=true)
     pomcpow_planner = solve(solver, train_pomdp)
 
     planners = [(pomcpow_planner, "POMCPOW Planner"),  
-           (random_planner, "Random Planner"), 
+        (random_planner, "Random Planner"), 
     ]
 
     results = experiment(planners, eval_pomdp)
@@ -210,22 +235,37 @@ function compute_tradeoff(alpha=1, stochastic_price=false, train_same=true)
     return results
 end
 
+end
+
 function main()
     alpha_values = collect(LinRange(0, 1, 50))
-    results_rand = Dict()
-    results_pomcpow = Dict()
-    emissions = []
-    for alpha in tqdm(alpha_values)
-        alpha_results = compute_tradeoff(alpha, false, true)
-        results_pomcpow[alpha] = Dict("emissions" => alpha_results["POMCPOW Planner"]["Total Emissions"], 
-                              "volume"    => (alpha_results["POMCPOW Planner"]["Total Domestic"][1] + 
-                                             alpha_results["POMCPOW Planner"]["Total Imported"][1], 
-                                             alpha_results["POMCPOW Planner"]["Total Domestic"][2] + 
-                                             alpha_results["POMCPOW Planner"]["Total Imported"][2]))
-
-    end
-    # print(results_pomcpow)
+    # Pmap, like map, takes function and iterator
+    #results_pomcpow = 
+    # Could Iterators.product to flatten for loop and then iterate over all in parallel
+    # Array indices will match the alpha values
+    # Pmap will handle the indexing
+    # Can do some fancy stuff to make this into a dict
+    # Short parallel stuff that will run fast (but needs many workers) -> Threads
+    results_pomcpow = pmap(alpha -> begin
+        # for alpha in alpha_values # Choose one loop to parallelize over to start
+            alpha_results = compute_tradeoff(alpha, false, true)
+            alpha =>
+            Dict( # Last statement is what's returned
+                "emissions" => alpha_results["POMCPOW Planner"]["Total Emissions"],
+                "volume" => (
+                    alpha_results["POMCPOW Planner"]["Total Domestic"][1] + 
+                    alpha_results["POMCPOW Planner"]["Total Imported"][1], 
+                    alpha_results["POMCPOW Planner"]["Total Domestic"][2] + 
+                    alpha_results["POMCPOW Planner"]["Total Imported"][2]
+                )
+            )
+    end, alpha_values)
+    # first = [(0.5 => {emissions => 3, volume => 5}), (0.3 => {emissions => 2, volume => 2})]
+    # first[0] = (0.5 => {emissions => 3, volume => 5})
+    # second = {0.5 => {}, 0.3 => {}}
+    # second[0.5] = {}
+    results_pomcpow = Dict(results_pomcpow)
     plot_pareto(results_pomcpow)
 end
 
-main()
+@time main() # Primary thing that you're running should be outside of the @everywhere
